@@ -1,8 +1,6 @@
 #include "al/app/al_App.hpp"
-#include "al/graphics/al_Shapes.hpp"
 #include "al/graphics/al_Image.hpp"
 #include "al/io/al_File.hpp"
-#include "al/graphics/al_Mesh.hpp"
 
 using namespace std;
 using namespace al;
