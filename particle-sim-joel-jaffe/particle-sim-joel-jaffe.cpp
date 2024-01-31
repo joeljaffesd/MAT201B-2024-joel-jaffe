@@ -128,7 +128,7 @@ struct AlloApp : App {
       // Avoid division by zero
         if (euclideanDistance > 1e-6) {
         // for each pair, calculate the electroForce
-        float electroForceMagnitude = ((coulombConstant * 1e-9) / pow(euclideanDistance, 2));
+        float electroForceMagnitude = ((coulombConstant * 1e-5) / pow(euclideanDistance, 2));
         // for each dimension of i and j, calculate acceleration
         for (int dim = 0; dim < 3; dim++) {
             float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
