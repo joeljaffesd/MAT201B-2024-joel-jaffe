@@ -26,7 +26,7 @@ struct AlloApp : App {
   Parameter dragValue{"/dragValue", "", 0.33, 0.0, 1.0}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   Parameter coulombConstant{"/coulombConstant", "", 8.92, 0, 10}; // <- creates GUI parameter
-  Parameter loveConstant{"/loveConstant", "", 27, 0, 50}; // <- creates GUI parameter
+  Parameter loveConstant{"/loveConstant", "", 15, 0, 30}; // <- creates GUI parameter
   Parameter radius{"/radius", "", 2.5, 0.0, 5.0}; // <- creates GUI parameter
 
   ShaderProgram pointShader; // <- Defines shader for points
@@ -124,7 +124,7 @@ struct AlloApp : App {
           acceleration[i][dim] += springForceMagnitude * direction;
         }
       
-      for (int j = 0; j < mesh.vertices().size(); j++) {
+      for (int j = i + 1; j < mesh.vertices().size(); j++) {
       // for each pair, calculate Euclidean distance
       float euclideanDistance = sqrt(pow(position[i][0] - position[j][0], 2) + pow(position[i][1] - position[j][1], 2) + pow(position[i][2] - position[j][2], 2));
       // Avoid division by zero
@@ -140,11 +140,11 @@ struct AlloApp : App {
         }
 
         // Asymmetical force (love)
-        Color colorI = mesh.colors()[i]; // <- retrieve color of vertex i
-        Color colorJ = mesh.colors()[j]; // <- retrieve color of vertex j
+        HSV colorI = mesh.colors()[i]; // <- retrieve color of vertex i
+        HSV colorJ = mesh.colors()[j]; // <- retrieve color of vertex j
         // If colorI is "red" and colorJ is "blue", apply attraction force
-        if (colorI.r > 0.5 && colorI.g < 0.5 && colorI.b < 0.5 &&  // <- Red color condition
-        colorJ.r < 0.5 && colorJ.g < 0.5 && colorJ.b > 0.5) {  // <- Blue color condition
+        if (colorI.h < (1.0 / 6) &&  // <- Red color condition
+        (4.0 / 6) < colorJ.h < (5.0 / 6)) {  // <- Blue color condition
         for (int dim = 0; dim < 3; dim++) {
           float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
           float loveForce = ((loveConstant * 1e-5) / pow(euclideanDistance, 2));
@@ -152,8 +152,8 @@ struct AlloApp : App {
           }
         }
 
-        else if (colorI.r < 0.5 && colorI.g < 0.5 && colorI.b > 0.5 &&  // <- Blue color condition
-        colorJ.r < 0.5 && colorJ.g > 0.5 && colorJ.b < 0.5) { // <- Green color condition
+        else if ((4.0 / 6) < colorI.h < (5.0 / 6) &&  // <- Blue color condition
+        (2.0 / 6) < colorJ.h < (3.0 / 6)) { // <- Green color condition
         for (int dim = 0; dim < 3; dim++) {
           float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
           float loveForce = ((loveConstant * 1e-5) / pow(euclideanDistance, 2));
