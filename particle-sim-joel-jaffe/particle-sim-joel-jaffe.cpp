@@ -26,6 +26,7 @@ struct AlloApp : App {
   Parameter dragValue{"/dragValue", "", 0.33, 0.0, 1.0}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   Parameter coulombConstant{"/coulombConstant", "", 8.92, 0, 10}; // <- creates GUI parameter
+  Parameter loveConstant{"/loveConstant", "", 27, 0, 50}; // <- creates GUI parameter
   Parameter radius{"/radius", "", 2.5, 0.0, 5.0}; // <- creates GUI parameter
 
   ShaderProgram pointShader; // <- Defines shader for points
@@ -45,6 +46,7 @@ struct AlloApp : App {
     gui.add(dragValue); // <- add parameter to GUI
     gui.add(springConstant); // <- add parameter to GUI
     gui.add(coulombConstant); // <- add parameter to GUI
+    gui.add(loveConstant); // <- add parameter to GUI
     gui.add(radius); // <- add parameter to GUI
   }
 
@@ -134,6 +136,19 @@ struct AlloApp : App {
             float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
             acceleration[i][dim] -= electroForceMagnitude * direction;
             acceleration[j][dim] += electroForceMagnitude * direction;  // Opposite force on particle j
+          }
+        }
+        // Asymmetical force (love)
+        Color colorI = mesh.colors()[i]; // <- retrieve color of vertex i
+        Color colorJ = mesh.colors()[j]; // <- retrieve color of vertex j
+        // If colorI is "red" and colorJ is "blue", apply attraction force
+        if (colorI.r > 0.5 && colorI.g < 0.5 && colorI.b < 0.5 &&  // <- Red color condition
+        colorJ.r < 0.5 && colorJ.g < 0.5 && colorJ.b > 0.5) {  // <- Blue color condition
+
+        for (int dim = 0; dim < 3; dim++) {
+          float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
+          float loveForce = ((loveConstant * 1e-5) / pow(euclideanDistance, 2));
+          acceleration[i][dim] += loveForce * direction; // <- red particles chase blue particles
           }
         }
       }
