@@ -138,17 +138,26 @@ struct AlloApp : App {
             acceleration[j][dim] += electroForceMagnitude * direction;  // Opposite force on particle j
           }
         }
+
         // Asymmetical force (love)
         Color colorI = mesh.colors()[i]; // <- retrieve color of vertex i
         Color colorJ = mesh.colors()[j]; // <- retrieve color of vertex j
         // If colorI is "red" and colorJ is "blue", apply attraction force
         if (colorI.r > 0.5 && colorI.g < 0.5 && colorI.b < 0.5 &&  // <- Red color condition
         colorJ.r < 0.5 && colorJ.g < 0.5 && colorJ.b > 0.5) {  // <- Blue color condition
-
         for (int dim = 0; dim < 3; dim++) {
           float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
           float loveForce = ((loveConstant * 1e-5) / pow(euclideanDistance, 2));
           acceleration[i][dim] += loveForce * direction; // <- red particles chase blue particles
+          }
+        }
+
+        else if (colorI.r < 0.5 && colorI.g < 0.5 && colorI.b > 0.5 &&  // <- Blue color condition
+        colorJ.r < 0.5 && colorJ.g > 0.5 && colorJ.b < 0.5) { // <- Green color condition
+        for (int dim = 0; dim < 3; dim++) {
+          float direction = (position[j][dim] - position[i][dim]) / euclideanDistance;
+          float loveForce = ((loveConstant * 1e-5) / pow(euclideanDistance, 2));
+          acceleration[i][dim] += loveForce * direction; // <- blue particles chase green particles
           }
         }
       }
