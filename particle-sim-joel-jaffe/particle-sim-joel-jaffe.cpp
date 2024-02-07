@@ -142,7 +142,7 @@ struct AlloApp : App {
         // Asymmetical force (love)
         HSV colorI = mesh.colors()[i]; // <- retrieve color of vertex i
         HSV colorJ = mesh.colors()[j]; // <- retrieve color of vertex j
-        // If colorI is "red" and colorJ is "blue", apply attraction force
+      
         if (colorI.h < (1.0 / 6) &&  // <- Red color condition
         (4.0 / 6) < colorJ.h < (5.0 / 6)) {  // <- Blue color condition
         for (int dim = 0; dim < 3; dim++) {
@@ -151,7 +151,6 @@ struct AlloApp : App {
           acceleration[i][dim] += loveForce * direction; // <- red particles chase blue particles
           }
         }
-
         else if ((4.0 / 6) < colorI.h < (5.0 / 6) &&  // <- Blue color condition
         (2.0 / 6) < colorJ.h < (3.0 / 6)) { // <- Green color condition
         for (int dim = 0; dim < 3; dim++) {
