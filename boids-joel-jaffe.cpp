@@ -76,13 +76,18 @@ struct MyApp : public al::App {
     }
 
     double phase = 0; // <- Initialize variable to accumulate dt
+    double camPhase = 0;
     void onAnimate(double dt) {
+
+      camPhase += dt;
+      nav().pos(0, sin((camPhase / 1)), 70 - camPhase); // <- Set initial position of camera
+      nav().faceToward(0, 0, 0); // <- Make camera face origin
 
       phase += dt;
       if (phase > 4) {
         phase = 0;
       }
-      
+
       for (int i = 0; i < food.size(); i++) {
         if (food[i].mag() > cageSize) { // if food is outside cage, 
             food[i] = al::rnd::ball<al::Vec3d>() * cageSize; // spawn new food
@@ -184,7 +189,7 @@ struct MyApp : public al::App {
     void onDraw(al::Graphics& g) {
         g.depthTesting(true);
         g.lighting(true);
-        g.clear(1);
+        g.clear(0);
 
         for (int i = 0; i < preyFlock.size(); i++) {
           g.color(flockColors[i][0], flockColors[i][1], flockColors[i][2]);
