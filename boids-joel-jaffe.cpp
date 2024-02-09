@@ -80,7 +80,7 @@ struct MyApp : public al::App {
     void onAnimate(double dt) {
 
       camPhase += dt;
-      nav().pos(0, sin((camPhase / 1)), 70 - camPhase); // <- Set initial position of camera
+      nav().pos(0, 0, 70 - camPhase); // <- Set initial position of camera
       nav().faceToward(0, 0, 0); // <- Make camera face origin
 
       phase += dt;
