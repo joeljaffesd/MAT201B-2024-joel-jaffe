@@ -86,7 +86,7 @@ struct MyApp : public App {
   bool freeze = false; // <- for pausing sim
   void onAnimate(double dt) {
     if (freeze) return; // <- if freeze is true, then pause sim
-    //dt = timeStep; // override dt
+    dt = timeStep; // override dt
 
     for (int i = 0; i < numParticles; i++) {
 
