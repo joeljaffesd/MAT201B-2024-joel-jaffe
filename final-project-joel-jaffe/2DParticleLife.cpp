@@ -11,9 +11,9 @@ using namespace al;
 #include <iostream>
 using namespace std;
 
-struct Particle {
-  int type;
-  Vec2f position;
+struct Particle { // Particle struct
+  int type;  // needs default constructor?
+  Vec2f position; 
   Vec2f velocity;
 };
 
@@ -33,20 +33,21 @@ Vec2f randomVec2f(float scale) { // <- Function that returns a Vec3f containing 
 
 struct MyApp : public App {
   Parameter timeStep{"/timeStep", "", 0.444, 0.01, 0.6}; // <- creates GUI parameter
-  Parameter simScale{"/simScale", "", 0.9, 1.f, 100.f}; // <- creates GUI parameter
+  Parameter simScale{"/simScale", "", 0.9f, 0.1f, 2.f}; // <- creates GUI parameter
   Mesh verts;
 
-  static const int numTypes = 6;
-  int numParticles = 1000;
-  float colorStep = 1.f / numTypes;
-  float K = 0.0000005; // make smaller to slow sim
-  float friction = 0.0000085; // make smaller to slow sim
-  float forces[numTypes][numTypes];
-  float minDistances[numTypes][numTypes];
-  float radii[numTypes][numTypes];
-  vector<Particle> swarm;
+  static const int numTypes = 6; // numTypes
+  int numParticles = 1000; // numParticles
+  float colorStep = 1.f / numTypes; // colorStrep
+  float K = 0.000005; // make smaller to slow sim 
+  float friction = 0.000085; // make smaller to slow sim
+  float forces[numTypes][numTypes]; // ??
+  float minDistances[numTypes][numTypes]; // ??
+  float radii[numTypes][numTypes]; // ??
 
-  void setParameters(int numTypes) {
+  vector<Particle> swarm; // swarm vector
+
+  void setParameters(int numTypes) { // define setParams function
     for (int i = 0; i < numTypes; i++) {
       for (int j = 0; j < numTypes; j++) {
         forces[i][j] = rnd::uniform<float>(1, 3);
@@ -69,9 +70,9 @@ struct MyApp : public App {
 
   void onCreate() {
     verts.primitive(Mesh::POINTS); // skin mesh as points
-    for (int i = 0; i < numParticles; i++) {
+    for (int i = 0; i < numParticles; i++) {  
       Particle particle;
-      particle.type = rnd::uniformi(1, 6);
+      particle.type = rnd::uniformi(0, numTypes - 1);
       particle.position = randomVec2f(simScale);
       particle.velocity = 0;
       swarm.push_back(particle);
@@ -94,7 +95,7 @@ struct MyApp : public App {
       Vec2f direction = 0;
       Vec2f totalForce = 0;
       Vec2f acceleration = 0;
-       
+      
       for (int j = 0; j < numParticles; j++) {
         if (i == j) {continue;}
         direction *= 0;
@@ -102,7 +103,7 @@ struct MyApp : public App {
         direction -= swarm[i].position;
         
         if (direction[0] > simScale) {
-          direction[0] -= 2 *simScale;
+          direction[0] -= 2 * simScale;
         }
         if (direction[0] < -1 * simScale) {
           direction[0] += 2 * simScale;
@@ -124,15 +125,15 @@ struct MyApp : public App {
           force *= K;
           totalForce += force;
         } 
-
+        
         if (dis < radii[swarm[i].type][swarm[j].type]) {
           Vec2f force = direction;
           force *= forces[swarm[i].type][swarm[j].type];
-          force += fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 1, 0);
+          force += fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 0, 1); // flip last two arguments?
           force *= K;
           totalForce += force;
         } 
-
+        
       } 
 
       acceleration += totalForce; // integrate totalForce
