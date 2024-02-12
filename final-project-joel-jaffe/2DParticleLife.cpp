@@ -40,7 +40,7 @@ struct MyApp : public App {
   int numParticles = 1000; // numParticles
   float colorStep = 1.f / numTypes; // colorStrep
   float K = 0.05; // make smaller to slow sim (0.05 looks good for simScale of 1)
-  float friction = 0.000085; // make smaller to slow sim (0.000085 looks good for simScale of 1)
+  float friction = 0.3; // make smaller to slow sim
   float forces[numTypes][numTypes]; 
   float minDistances[numTypes][numTypes]; 
   float radii[numTypes][numTypes]; 
@@ -55,7 +55,7 @@ struct MyApp : public App {
           forces[i][j] *= -1;
         }
         minDistances[i][j] = rnd::uniform<float>(.1, .05); // .1, .05 for simScale of 1
-        radii[i][j] = rnd::uniform<float>(.5, .15); 
+        radii[i][j] = rnd::uniform<float>(.5, .15); // .5, .15 for simScale of 1
         cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
         cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
         cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
@@ -90,7 +90,7 @@ struct MyApp : public App {
   bool freeze = false; // <- for pausing sim
   void onAnimate(double dt) {
     if (freeze) return; // <- if freeze is true, then pause sim
-    dt = timeStep; // override dt
+    //dt = timeStep; // override dt
 
     for (int i = 0; i < numParticles; i++) {
 
@@ -141,12 +141,13 @@ struct MyApp : public App {
 
       acceleration += totalForce; // integrate totalForce
       swarm[i].velocity += acceleration; // integrate acceleration
+      swarm[i].velocity *= friction; // apply friction
       swarm[i].position += swarm[i].velocity; // integrate velocity
       
       swarm[i].position[0] = fWrap(swarm[i].position[0], simScale); // wrapping x-dim
       swarm[i].position[1] = fWrap(swarm[i].position[1], simScale); // wrapping y-dim
       
-      swarm[i].velocity *= friction; // apply friction
+      //swarm[i].velocity *= friction; // apply friction
       verts.vertices()[i] = swarm[i].position; // skin mesh
       
     } 
