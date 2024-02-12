@@ -17,17 +17,17 @@ struct Particle { // Particle struct
   Vec2f velocity;
 };
 
-float fMap(float value, float in_min, float in_max, float out_min, float out_max) {
+float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-float fWrap(float input, float scope) {
+float fWrap(float input, float scope) { // custom wrapping function
     float lowerBound = -1 * scope;
     float range = 2 * scope;
     return lowerBound + fmodf((input - lowerBound + range), range);
 }
 
-Vec2f randomVec2f(float scale) { // <- Function that returns a Vec3f containing random coords
+Vec2f randomVec2f(float scale) { // <- Function that returns a Vec2f containing random coords
   return Vec2f(rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
@@ -39,23 +39,23 @@ struct MyApp : public App {
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles
   float colorStep = 1.f / numTypes; // colorStrep
-  float K = 0.05; // make smaller to slow sim 
-  float friction = 0.000085; // make smaller to slow sim
-  float forces[numTypes][numTypes]; // ??
-  float minDistances[numTypes][numTypes]; // ??
-  float radii[numTypes][numTypes]; // ??
+  float K = 0.05; // make smaller to slow sim (0.05 looks good for simScale of 1)
+  float friction = 0.000085; // make smaller to slow sim (0.000085 looks good for simScale of 1)
+  float forces[numTypes][numTypes]; 
+  float minDistances[numTypes][numTypes]; 
+  float radii[numTypes][numTypes]; 
 
   vector<Particle> swarm; // swarm vector
 
   void setParameters(int numTypes) { // define setParams function (seems to be working)
     for (int i = 0; i < numTypes; i++) {
       for (int j = 0; j < numTypes; j++) {
-        forces[i][j] = rnd::uniform<float>(.01, .03);
+        forces[i][j] = rnd::uniform<float>(.01, .03); // .01, .013 for simScale of 1
         if (rnd::uniformi(1, 100) < 50) {
           forces[i][j] *= -1;
         }
-        minDistances[i][j] = rnd::uniform<float>(.50, .30);
-        radii[i][j] = rnd::uniform<float>(2.50, .70);
+        minDistances[i][j] = rnd::uniform<float>(.1, .05); // .1, .05 for simScale of 1
+        radii[i][j] = rnd::uniform<float>(.5, .15); 
         cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
         cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
         cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
@@ -128,15 +128,15 @@ struct MyApp : public App {
           force *= K;
           totalForce += force;
         } 
-        /*
+        
         if (dis < radii[swarm[i].type][swarm[j].type]) { // asymmetircal forces
           Vec2f force = direction;
           force *= forces[swarm[i].type][swarm[j].type];
-          force += fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 0, 1); // flip last two arguments?
+          force *= fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 1, 0); // flip last two arguments?
           force *= K;
           totalForce += force;
         } 
-        */
+        
       } 
 
       acceleration += totalForce; // integrate totalForce
