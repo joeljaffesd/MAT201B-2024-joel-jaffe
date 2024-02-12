@@ -39,7 +39,7 @@ struct MyApp : public App {
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles
   float colorStep = 1.f / numTypes; // colorStrep
-  float K = 0.000005; // make smaller to slow sim 
+  float K = 0.05; // make smaller to slow sim 
   float friction = 0.000085; // make smaller to slow sim
   float forces[numTypes][numTypes]; // ??
   float minDistances[numTypes][numTypes]; // ??
@@ -47,15 +47,18 @@ struct MyApp : public App {
 
   vector<Particle> swarm; // swarm vector
 
-  void setParameters(int numTypes) { // define setParams function
+  void setParameters(int numTypes) { // define setParams function (seems to be working)
     for (int i = 0; i < numTypes; i++) {
       for (int j = 0; j < numTypes; j++) {
-        forces[i][j] = rnd::uniform<float>(1, 3);
+        forces[i][j] = rnd::uniform<float>(.01, .03);
         if (rnd::uniformi(1, 100) < 50) {
           forces[i][j] *= -1;
         }
-        minDistances[i][j] = rnd::uniform<float>(50, 30);
-        radii[i][j] = rnd::uniform<float>(250, 70);
+        minDistances[i][j] = rnd::uniform<float>(.50, .30);
+        radii[i][j] = rnd::uniform<float>(2.50, .70);
+        cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
+        cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
+        cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
       }
     }
   }
@@ -118,22 +121,22 @@ struct MyApp : public App {
         dis = direction.mag();
         direction.normalize();
 
-        if (dis < minDistances[swarm[i].type][swarm[j].type]) {
+        if (dis < minDistances[swarm[i].type][swarm[j].type]) { // separation forces
           Vec2f force = direction;
           force *= abs(forces[swarm[i].type][swarm[j].type]) * -3;
           force *= fMap(dis, 0, minDistances[swarm[i].type][swarm[j].type], 1, 0);
           force *= K;
           totalForce += force;
         } 
-        
-        if (dis < radii[swarm[i].type][swarm[j].type]) {
+        /*
+        if (dis < radii[swarm[i].type][swarm[j].type]) { // asymmetircal forces
           Vec2f force = direction;
           force *= forces[swarm[i].type][swarm[j].type];
           force += fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 0, 1); // flip last two arguments?
           force *= K;
           totalForce += force;
         } 
-        
+        */
       } 
 
       acceleration += totalForce; // integrate totalForce
