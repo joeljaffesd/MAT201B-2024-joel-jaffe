@@ -12,7 +12,7 @@ using namespace al;
 using namespace std;
 
 struct Particle { // Particle struct
-  int type;  // needs default constructor?
+  int type;
   Vec2f position; 
   Vec2f velocity;
 };
@@ -32,25 +32,24 @@ Vec2f randomVec2f(float scale) { // <- Function that returns a Vec2f containing 
 } 
 
 struct MyApp : public App {
-  Parameter timeStep{"/timeStep", "", 0.444, 0.01, 0.6}; // <- creates GUI parameter
-  Parameter simScale{"/simScale", "", 0.9f, 0.1f, 2.f}; // <- creates GUI parameter
-  Mesh verts;
+  Parameter simScale{"/simScale", "", 1.f, 0.00001f, 1.f}; // <- creates GUI parameter
+  Mesh verts; // create mesh for visualzing particles
 
   static const int numTypes = 6; // numTypes
-  int numParticles = 1000; // numParticles
+  int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
   float colorStep = 1.f / numTypes; // colorStrep
-  float K = 0.05; // make smaller to slow sim (0.05 looks good for simScale of 1)
-  float friction = 0.3; // make smaller to slow sim
-  float forces[numTypes][numTypes]; 
-  float minDistances[numTypes][numTypes]; 
-  float radii[numTypes][numTypes]; 
+  float K = 0.05; // make smaller to slow sim (0.05 looks good for simScale around 1)
+  float friction = 0.6; // make smaller to slow sim (0.6 looks good for a simScale around 1)
+  float forces[numTypes][numTypes]; // forces table
+  float minDistances[numTypes][numTypes]; // minDistances table
+  float radii[numTypes][numTypes]; // radii table
 
   vector<Particle> swarm; // swarm vector
 
   void setParameters(int numTypes) { // define setParams function (seems to be working)
     for (int i = 0; i < numTypes; i++) {
       for (int j = 0; j < numTypes; j++) {
-        forces[i][j] = rnd::uniform<float>(.01, .03); // .01, .013 for simScale of 1
+        forces[i][j] = rnd::uniform<float>(.01, .003); // .01, .003 for simScale of 1
         if (rnd::uniformi(1, 100) < 50) {
           forces[i][j] *= -1;
         }
@@ -67,45 +66,45 @@ struct MyApp : public App {
     // set up GUI
     auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
     auto &gui = GUIdomain->newGUI();
-    gui.add(timeStep); // add parameter to GUI
     gui.add(simScale); // add parameter to GUI
   }
 
   void onCreate() {
     verts.primitive(Mesh::POINTS); // skin mesh as points
-    for (int i = 0; i < numParticles; i++) {  
-      Particle particle;
-      particle.type = rnd::uniformi(0, numTypes - 1);
-      particle.position = randomVec2f(simScale);
-      particle.velocity = 0;
-      swarm.push_back(particle);
+    //verts.primitive(Mesh::LINE_LOOP); // for laser show
+    for (int i = 0; i < numParticles; i++) {  // for each iter...
+      Particle particle; // initialzie a particle
+      particle.type = rnd::uniformi(0, numTypes - 1); // give random type
+      particle.position = randomVec2f(simScale); // give random pos within simScale 
+      particle.velocity = 0; // give initial velocity of 0
+      swarm.push_back(particle); // append to swarm vector
 
-      verts.vertex(particle.position);
-      verts.color(HSV(particle.type * colorStep, 1.f, 1.f));
+      verts.vertex(particle.position); // append particle to mesh 
+      verts.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
     }
-    setParameters(numTypes);
+    setParameters(numTypes); // initial params
   }
 
 
   bool freeze = false; // <- for pausing sim
   void onAnimate(double dt) {
     if (freeze) return; // <- if freeze is true, then pause sim
-    //dt = timeStep; // override dt
 
-    for (int i = 0; i < numParticles; i++) {
+    for (int i = 0; i < numParticles; i++) { // for each particle, ~60fps...
 
-      float dis = 0;
-      Vec2f direction = 0;
-      Vec2f totalForce = 0;
-      Vec2f acceleration = 0;
+      float dis = 0; // initialize dis
+      Vec2f direction = 0; // initialize direction
+      Vec2f totalForce = 0; // initialize totalForce
+      Vec2f acceleration = 0; // initialize acceleration
       
       for (int j = 0; j < numParticles; j++) {
-        if (i == j) {continue;}
-        direction *= 0;
-        direction += swarm[j].position;
-        direction -= swarm[i].position;
+        if (i == j) {continue;} // don't have particles calculate forces on themselves
+        direction *= 0; // set direction to 0
+        direction += swarm[j].position; // direction == j particle 
+        direction -= swarm[i].position; // direction -= current particle
         
-        if (direction[0] > simScale) {
+        // make sure direction is measured with toroidal wrapping
+        if (direction[0] > simScale) { 
           direction[0] -= 2 * simScale;
         }
         if (direction[0] < -1 * simScale) {
@@ -118,36 +117,36 @@ struct MyApp : public App {
           direction[1] += 2 * simScale;
         }
         
-        dis = direction.mag();
-        direction.normalize();
+        dis = direction.mag(); // Euclidian distance between particles
+        direction.normalize(); // normalize to unit vector
 
-        if (dis < minDistances[swarm[i].type][swarm[j].type]) { // separation forces
-          Vec2f force = direction;
-          force *= abs(forces[swarm[i].type][swarm[j].type]) * -3;
-          force *= fMap(dis, 0, minDistances[swarm[i].type][swarm[j].type], 1, 0);
-          force *= K;
-          totalForce += force;
+        if (dis < minDistances[swarm[i].type][swarm[j].type]) { // separation forces (personal space)
+          Vec2f force = direction; 
+          force *= abs(forces[swarm[i].type][swarm[j].type]) * -3; // calculate repulsion force based on type
+          force *= fMap(dis, 0, minDistances[swarm[i].type][swarm[j].type], 1, 0); // map based on distance
+          force *= K; // scale by K
+          totalForce += force; // add  to totalForce
         } 
         
-        if (dis < radii[swarm[i].type][swarm[j].type]) { // asymmetircal forces
-          Vec2f force = direction;
-          force *= forces[swarm[i].type][swarm[j].type];
-          force *= fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 1, 0); // flip last two arguments?
-          force *= K;
-          totalForce += force;
+        if (dis < radii[swarm[i].type][swarm[j].type]) { // love/hate forces
+          Vec2f force = direction; 
+          force *= forces[swarm[i].type][swarm[j].type]; // calculate force based on type
+          force *= fMap(dis, 0, radii[swarm[i].type][swarm[j].type], 1, 0); // map based on distance (flip last two arguments?)
+          force *= K; // scale by K
+          totalForce += force; // add to totalForce
         } 
         
       } 
 
       acceleration += totalForce; // integrate totalForce
       swarm[i].velocity += acceleration; // integrate acceleration
-      swarm[i].velocity *= friction; // apply friction
+      swarm[i].velocity *= friction; // apply friction here?
       swarm[i].position += swarm[i].velocity; // integrate velocity
       
       swarm[i].position[0] = fWrap(swarm[i].position[0], simScale); // wrapping x-dim
       swarm[i].position[1] = fWrap(swarm[i].position[1], simScale); // wrapping y-dim
       
-      //swarm[i].velocity *= friction; // apply friction
+      //swarm[i].velocity *= friction; // or apply friction here?
       verts.vertices()[i] = swarm[i].position; // skin mesh
       
     } 
@@ -158,18 +157,18 @@ struct MyApp : public App {
     if (k.key() == ' ') { // <- on spacebar, freeze or unfreeze simulation
       freeze = !freeze; // <- invert state of freeze
     }
-    if (k.key() == '1') { // <- on 1
+    if (k.key() == '1') { // <- on 1, setParams
       setParameters(numTypes);
     }
     return true;
   }
 
-  void onDraw(Graphics &g) {
-    g.clear(0);
+  void onDraw(Graphics &g) { 
+    g.clear(0); // black background
     g.camera(Viewpoint::IDENTITY); // Ortho [-1:1] x [-1:1]
-    g.pointSize(10);
-    g.meshColor();
-    g.draw(verts);
+    g.pointSize(10); // set pointSize
+    g.meshColor(); // color vertices based on type
+    g.draw(verts); // draw verts
     g.camera(Viewpoint::ORTHO_FOR_2D); // Ortho [0:width] x [0:height]
   }
 };
