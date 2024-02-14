@@ -7,6 +7,7 @@
 #include "al/math/al_Random.hpp"
 #include "al/app/al_GUIDomain.hpp"
 #include "al/app/al_DistributedApp.hpp"
+#include "al/app/al_OmniRendererDomain.hpp"
 using namespace al;
 
 #include <iostream>
@@ -29,7 +30,8 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
 struct MyOmniRendererApp : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
-  Mesh verts; // create mesh for visualzing particles
+  VAOMesh verts; // create mesh for visualzing particles
+  ParameterPose currentPose{"currentPose"}; // is this necessary?
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -57,7 +59,7 @@ struct MyOmniRendererApp : DistributedApp {
       }
     }
   }
-
+/* // gui breaks omni render!! 
   void onInit() override {
     // set up GUI
     auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
@@ -65,10 +67,8 @@ struct MyOmniRendererApp : DistributedApp {
     gui.add(simScale); // add parameter to GUI
     gui.add(springConstant); // add parameter to GUI
   }
-
+*/
   void onCreate() {
-    //verts.primitive(Mesh::POINTS); // skin mesh as points
-    verts.primitive(Mesh::LINE_LOOP); // for laser show
     for (int i = 0; i < numParticles; i++) {  // for each iter...
       Particle particle; // initialzie a particle
       particle.type = rnd::uniformi(0, numTypes - 1); // give random type
@@ -80,6 +80,10 @@ struct MyOmniRendererApp : DistributedApp {
       verts.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
     }
     setParameters(numTypes); // initial params
+    verts.primitive(VAOMesh::POINTS); // skin mesh as points
+    //verts.primitive(VAOMesh::LINE_LOOP); // for laser show
+    verts.update();
+    parameterServer() << currentPose; // is this necessary?
   }
 
 
@@ -137,9 +141,17 @@ struct MyOmniRendererApp : DistributedApp {
       
       //swarm[i].velocity *= friction; // or apply friction here?
       verts.vertices()[i] = swarm[i].position; // skin mesh
-      
+      //verts.update(); // call update here?
     } 
 
+    verts.update(); // or call update here? 
+    
+    if (isPrimary()) { // is this necessary?
+      currentPose = pose();
+    } else {
+      pose().set(currentPose.get());
+    }
+    
   } 
   
   bool onKeyDown(const Keyboard &k) override {
@@ -152,7 +164,7 @@ struct MyOmniRendererApp : DistributedApp {
     return true;
   }
 
-  void onDraw(Graphics &g) { 
+  void onDraw(Graphics &g) override { 
     g.clear(0); // black background
     g.pointSize(10); // set pointSize
     g.meshColor(); // color vertices based on type
