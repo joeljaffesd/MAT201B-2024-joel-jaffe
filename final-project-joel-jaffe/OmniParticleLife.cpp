@@ -6,6 +6,7 @@
 #include "al/system/al_Time.hpp"
 #include "al/math/al_Random.hpp"
 #include "al/app/al_GUIDomain.hpp"
+#include "al/app/al_DistributedApp.hpp"
 using namespace al;
 
 #include <iostream>
@@ -25,7 +26,7 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
-struct MyApp : public App {
+struct MyOmniRendererApp : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   Mesh verts; // create mesh for visualzing particles
@@ -66,8 +67,8 @@ struct MyApp : public App {
   }
 
   void onCreate() {
-    verts.primitive(Mesh::POINTS); // skin mesh as points
-    //verts.primitive(Mesh::LINE_LOOP); // for laser show
+    //verts.primitive(Mesh::POINTS); // skin mesh as points
+    verts.primitive(Mesh::LINE_LOOP); // for laser show
     for (int i = 0; i < numParticles; i++) {  // for each iter...
       Particle particle; // initialzie a particle
       particle.type = rnd::uniformi(0, numTypes - 1); // give random type
@@ -160,7 +161,7 @@ struct MyApp : public App {
 };
 
 int main() {
-  MyApp app;
+  MyOmniRendererApp app;
   app.configureAudio(48000, 512, 2, 0);
   app.start();
 }
