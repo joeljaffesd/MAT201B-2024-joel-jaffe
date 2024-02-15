@@ -27,11 +27,11 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
-struct MyOmniRendererApp : DistributedApp {
+struct swarmOrb : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
-  VAOMesh verts; // create mesh for visualzing particles
-  ParameterPose currentPose{"currentPose"}; // is this necessary?
+  Mesh verts; // create mesh for visualzing particles
+  //VAOMesh verts; // <- use VAOMesh instead?
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -80,16 +80,15 @@ struct MyOmniRendererApp : DistributedApp {
       verts.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
     }
     setParameters(numTypes); // initial params
-    verts.primitive(VAOMesh::POINTS); // skin mesh as points
-    //verts.primitive(VAOMesh::LINE_LOOP); // for laser show
-    verts.update();
-    parameterServer() << currentPose; // is this necessary?
+    verts.primitive(Mesh::POINTS); // skin mesh as points
+    //verts.primitive(Mesh::LINE_LOOP); // for laser show
+    //verts.update(); <- if using VAOMesh
   }
-
 
   bool freeze = false; // <- for pausing sim
   double phase = 0;
   void onAnimate(double dt) {
+
     if (freeze) return; // <- if freeze is true, then pause sim
     phase += dt;
     if (phase > 5) {
@@ -110,8 +109,9 @@ struct MyOmniRendererApp : DistributedApp {
       
       for (int j = 0; j < numParticles; j++) {
         if (i == j) {continue;} // don't have particles calculate forces on themselves
+
         direction *= 0; // set direction to 0
-        direction += swarm[j].position; // direction == j particle 
+        direction += swarm[j].position; // direction = j particle 
         direction -= swarm[i].position; // direction -= current particle
         dis = direction.mag(); // Euclidian distance between particles
         direction.normalize(); // normalize to unit vector
@@ -143,15 +143,7 @@ struct MyOmniRendererApp : DistributedApp {
       verts.vertices()[i] = swarm[i].position; // skin mesh
       //verts.update(); // call update here?
     } 
-
-    verts.update(); // or call update here? 
-    
-    if (isPrimary()) { // is this necessary?
-      currentPose = pose();
-    } else {
-      pose().set(currentPose.get());
-    }
-    
+    //verts.update(); // or call update here? 
   } 
   
   bool onKeyDown(const Keyboard &k) override {
@@ -164,7 +156,7 @@ struct MyOmniRendererApp : DistributedApp {
     return true;
   }
 
-  void onDraw(Graphics &g) override { 
+  void onDraw(Graphics &g) { 
     g.clear(0); // black background
     g.pointSize(10); // set pointSize
     g.meshColor(); // color vertices based on type
@@ -173,7 +165,7 @@ struct MyOmniRendererApp : DistributedApp {
 };
 
 int main() {
-  MyOmniRendererApp app;
+  swarmOrb app;
   app.configureAudio(48000, 512, 2, 0);
   app.start();
 }
