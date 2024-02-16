@@ -37,6 +37,23 @@ struct foo : DistributedApp {
       //float monitor = static_cast <float> (io.out(2));
       //cout << monitor << endl;
       scaleVal = abs(channelLeft + channelRight);
+      /*
+      Generating control signals for natural-feeling motion
+
+      For simScale, summing channels and sending to 
+        peakamp(10ms)
+        slide(1, 50)
+      works pretty well. This scheme works less well with highly compressed audio 
+
+      For setParams, sum channels and send to
+        delta~
+        if (abs($1) > $f2) {setParams}
+      works decent, $f2 must be tuned
+
+      In general, these amplitude-domain techniques have trouble 
+      with high compressed audio. 
+      It may be best to use spectral techniques instead
+      */
     }
   }
 
