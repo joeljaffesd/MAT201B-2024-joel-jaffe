@@ -9,8 +9,12 @@ struct foo : DistributedApp {
 
   float channelLeft = 0;
   float channelRight = 0;
-  float scaleVal = 1;
+  float scaleVal = 0;
   Mesh mesh;
+
+  float ampToDec (float in) {
+    return 20.f * log10(in);
+  }
 
   void onCreate() override {
     addSphere(mesh);
@@ -29,32 +33,31 @@ struct foo : DistributedApp {
   }
 
   void onSound(AudioIOData& io) override{
+    float maxSamp = 0;
+    float lastSamp = 0;
+    float sampleTime = 1 / 48000;
+    float slideIn = exp(-sampleTime / 1);
+    float slideOut = exp(-sampleTime / 50);
+
     while(io()) { 
       channelLeft = io.in(0);
       channelRight = io.in(1);
       io.out(2) = channelLeft;
       io.out(3) = channelRight;
-      //float monitor = static_cast <float> (io.out(2));
-      //cout << monitor << endl;
-      scaleVal = abs(channelLeft + channelRight);
-      /*
-      Generating control signals for natural-feeling motion
-
-      For simScale, summing channels and sending to 
-        peakamp(10ms)
-        slide(1, 50)
-      works pretty well. This scheme works less well with highly compressed audio 
-
-      For setParams, sum channels and send to
-        delta~
-        if (abs($1) > $f2) {setParams}
-      works decent, $f2 must be tuned
-
-      In general, these amplitude-domain techniques have trouble 
-      with high compressed audio. 
-      It may be best to use spectral techniques instead
-      */
+      float mixDown = abs(channelLeft + channelRight);
+      float mSlide = (0.5 * mixDown) + (0.5 * lastSamp);
+      //float dbVal = abs(ampToDec(mSlide));
+      //float mSlide = lastSamp + ((mixDown - lastSamp) * 0.5);
+      //float mDifference = mixDown - lastSamp;
+      //float scaledDiff = mDifference * ((slideOut + lastSamp) / (slideIn + lastSamp));
+      //float mSlide = lastSamp + scaledDiff;
+      if (mSlide > maxSamp) {
+        maxSamp = mSlide;
+      }
+      lastSamp = mSlide;
+      //scaleVal = maxSamp * 0.1;
     }
+    scaleVal = abs(maxSamp) * 0.1f;
   }
 
 };

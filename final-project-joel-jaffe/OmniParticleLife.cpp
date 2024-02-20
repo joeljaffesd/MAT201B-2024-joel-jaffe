@@ -13,12 +13,6 @@ using namespace al;
 #include <iostream>
 using namespace std;
 
-struct Particle { // Particle struct
-  int type;
-  Vec3f position; 
-  Vec3f velocity;
-};
-
 float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
@@ -26,6 +20,37 @@ float fMap(float value, float in_min, float in_max, float out_min, float out_max
 Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing random coords
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
+
+struct Particle { // Particle struct
+  int type;
+  Vec3f position; 
+  Vec3f velocity;
+};
+
+class BiquadLoPass {
+  private:
+    float alpha;
+    float beta;
+    float yPrev1;
+    float yPrev2;
+
+  public:
+    BiquadLoPass (float cutoffFrequency, float Q, float sampleRate) {
+      float omega = 2.0 * M_PI * cutoffFrequency / sampleRate;
+      float alpha0 = sin(omega) / (2.0 * Q);
+      alpha = alpha0 / (1.0 + alpha0);
+      beta = (1.0 - cos(omega)) / 2.0;
+      yPrev1 = 0.0;
+      yPrev2 = 0.0;
+    }
+
+    float processSample(float x) {
+      float y = (1.0 - alpha - beta) * yPrev2 + alpha * x + alpha * yPrev1 + beta * x;
+      yPrev2 = yPrev1;
+      yPrev1 = y;
+      return y;
+    }
+};
 
 struct swarmOrb : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
@@ -41,6 +66,13 @@ struct swarmOrb : DistributedApp {
   float forces[numTypes][numTypes]; // forces table
   float minDistances[numTypes][numTypes]; // minDistances table
   float radii[numTypes][numTypes]; // radii table
+
+  float channelLeft = 0; // initialzie float to hold audio values
+  float channelRight = 0; // initialzie float to hold audio values
+  float pointSize = 0; // initialzie float to hold pointSize values
+  //float cutOff = 10000;
+  //float qFactor = 10;
+  //float sampleRate = 48000;
 
   vector<Particle> swarm; // swarm vector
 
@@ -145,6 +177,24 @@ struct swarmOrb : DistributedApp {
     } 
     //verts.update(); // or call update here? 
   } 
+
+  void onSound(AudioIOData& io) override{
+    //BiquadLoPass mLoPass (cutOff, qFactor, sampleRate); // instantiate loPass
+    float maxSamp = 0;
+    while(io()) { 
+      channelLeft = io.in(0);
+      channelRight = io.in(1);
+      float mixDown = abs(channelLeft + channelRight);
+      //float loPassed = mLoPass.processSample(mixDown);
+      if (mixDown > maxSamp) {
+        maxSamp = mixDown;
+      }
+      pointSize = 10 * maxSamp;
+      io.out(2) = channelLeft;
+      io.out(3) = channelRight;
+    }
+    //pointSize = 10 * maxSamp;
+  }
   
   bool onKeyDown(const Keyboard &k) override {
     if (k.key() == ' ') { // <- on spacebar, freeze or unfreeze simulation
@@ -158,7 +208,7 @@ struct swarmOrb : DistributedApp {
 
   void onDraw(Graphics &g) { 
     g.clear(0); // black background
-    g.pointSize(10); // set pointSize
+    g.pointSize(pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
     g.draw(verts); // draw verts
   }
@@ -166,6 +216,8 @@ struct swarmOrb : DistributedApp {
 
 int main() {
   swarmOrb app;
-  app.configureAudio(48000, 512, 2, 0);
+  AudioDevice alloAudio = AudioDevice("AlloAudio");
+  alloAudio.print();
+  app.configureAudio(alloAudio, 48000, 128, 4, 2);
   app.start();
 }
