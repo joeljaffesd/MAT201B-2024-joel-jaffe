@@ -1,6 +1,13 @@
-// Joel Jaffe February 2024
-//Based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
-//Programming Chaos on YouTube
+// Oraculum: Omnispherical Audio-Reactive Visuals for Electric Instruments
+// Joel Jaffe February 2024 
+
+// Particle life based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
+// Programming Chaos on YouTube
+
+// NOTES //
+// state?! "DistributedAppWithState"
+// onAnimate {if (!= mIsReplica) {}}
+// implement EnvFollow from Gamma
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -27,36 +34,10 @@ struct Particle { // Particle struct
   Vec3f velocity;
 };
 
-class BiquadLoPass {
-  private:
-    float alpha;
-    float beta;
-    float yPrev1;
-    float yPrev2;
-
-  public:
-    BiquadLoPass (float cutoffFrequency, float Q, float sampleRate) {
-      float omega = 2.0 * M_PI * cutoffFrequency / sampleRate;
-      float alpha0 = sin(omega) / (2.0 * Q);
-      alpha = alpha0 / (1.0 + alpha0);
-      beta = (1.0 - cos(omega)) / 2.0;
-      yPrev1 = 0.0;
-      yPrev2 = 0.0;
-    }
-
-    float processSample(float x) {
-      float y = (1.0 - alpha - beta) * yPrev2 + alpha * x + alpha * yPrev1 + beta * x;
-      yPrev2 = yPrev1;
-      yPrev1 = y;
-      return y;
-    }
-};
-
 struct swarmOrb : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   Mesh verts; // create mesh for visualzing particles
-  //VAOMesh verts; // <- use VAOMesh instead?
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -70,21 +51,18 @@ struct swarmOrb : DistributedApp {
   float channelLeft = 0; // initialzie float to hold audio values
   float channelRight = 0; // initialzie float to hold audio values
   float pointSize = 0; // initialzie float to hold pointSize values
-  //float cutOff = 10000;
-  //float qFactor = 10;
-  //float sampleRate = 48000;
 
   vector<Particle> swarm; // swarm vector
 
   void setParameters(int numTypes) { // define setParams function (seems to be working)
     for (int i = 0; i < numTypes; i++) {
       for (int j = 0; j < numTypes; j++) {
-        forces[i][j] = rnd::uniform<float>(.01, .003); // .01, .003 for simScale of 1
+        forces[i][j] = rnd::uniform<float>(.01, .003); // .01, .003 for simScale of .5
         if (rnd::uniformi(1, 100) < 50) {
           forces[i][j] *= -1;
         }
-        minDistances[i][j] = rnd::uniform<float>(.1, .05); // .1, .05 for simScale of 1
-        radii[i][j] = rnd::uniform<float>(.5, .15); // .5, .15 for simScale of 1
+        minDistances[i][j] = rnd::uniform<float>(.1, .05); // .1, .05 for simScale of .5
+        radii[i][j] = rnd::uniform<float>(.5, .15); // .5, .15 for simScale of .5
         cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
         cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
         cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
@@ -114,7 +92,6 @@ struct swarmOrb : DistributedApp {
     setParameters(numTypes); // initial params
     verts.primitive(Mesh::POINTS); // skin mesh as points
     //verts.primitive(Mesh::LINE_LOOP); // for laser show
-    //verts.update(); <- if using VAOMesh
   }
 
   bool freeze = false; // <- for pausing sim
@@ -129,7 +106,6 @@ struct swarmOrb : DistributedApp {
     }
 
     for (int i = 0; i < numParticles; i++) { // for each particle, ~60fps...
-
       float dis = 0; // initialize dis
       Vec3f direction = 0; // initialize direction
       Vec3f totalForce = 0; // initialize totalForce
@@ -173,19 +149,15 @@ struct swarmOrb : DistributedApp {
       
       //swarm[i].velocity *= friction; // or apply friction here?
       verts.vertices()[i] = swarm[i].position; // skin mesh
-      //verts.update(); // call update here?
-    } 
-    //verts.update(); // or call update here? 
+    }  
   } 
 
   void onSound(AudioIOData& io) override{
-    //BiquadLoPass mLoPass (cutOff, qFactor, sampleRate); // instantiate loPass
     float maxSamp = 0;
     while(io()) { 
       channelLeft = io.in(0);
       channelRight = io.in(1);
       float mixDown = abs(channelLeft + channelRight);
-      //float loPassed = mLoPass.processSample(mixDown);
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
       }
@@ -215,9 +187,9 @@ struct swarmOrb : DistributedApp {
 };
 
 int main() {
-  swarmOrb app;
-  AudioDevice alloAudio = AudioDevice("AlloAudio");
-  alloAudio.print();
-  app.configureAudio(alloAudio, 48000, 128, 4, 2);
-  app.start();
+  swarmOrb app; // instance of swarmOrb
+  AudioDevice alloAudio = AudioDevice("AlloAudio"); // declare audio device
+  alloAudio.print(); // print audio device details
+  app.configureAudio(alloAudio, 48000, 128, 4, 2); // configureAudio
+  app.start(); // start
 }
