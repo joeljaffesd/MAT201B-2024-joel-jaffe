@@ -17,8 +17,12 @@
 #include "al/app/al_OmniRendererDomain.hpp"
 using namespace al;
 
+#include "Gamma/Analysis.h"
+
 #include <iostream>
 using namespace std;
+
+
 
 float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -38,6 +42,7 @@ struct swarmOrb : DistributedApp {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   Mesh verts; // create mesh for visualzing particles
+  gam::EnvFollow<float, float> envFollower;
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -69,7 +74,8 @@ struct swarmOrb : DistributedApp {
       }
     }
   }
-/* // gui breaks omni render!! 
+// gui breaks omni render!! 
+/*
   void onInit() override {
     // set up GUI
     auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
@@ -97,7 +103,6 @@ struct swarmOrb : DistributedApp {
   bool freeze = false; // <- for pausing sim
   double phase = 0;
   void onAnimate(double dt) {
-
     if (freeze) return; // <- if freeze is true, then pause sim
     phase += dt;
     if (phase > 5) {
@@ -158,6 +163,8 @@ struct swarmOrb : DistributedApp {
       channelLeft = io.in(0);
       channelRight = io.in(1);
       float mixDown = abs(channelLeft + channelRight);
+      envFollower(channelLeft + channelRight);
+      float mixEnv = envFollower.value();
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
       }
@@ -165,7 +172,6 @@ struct swarmOrb : DistributedApp {
       io.out(2) = channelLeft;
       io.out(3) = channelRight;
     }
-    //pointSize = 10 * maxSamp;
   }
   
   bool onKeyDown(const Keyboard &k) override {
