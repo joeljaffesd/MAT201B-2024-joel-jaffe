@@ -5,8 +5,8 @@
 // Programming Chaos on YouTube
 
 // NOTES //
-// state?! "DistributedAppWithState"
-// onAnimate {if (!= mIsReplica) {}}
+// state?! "DistributedAppWithState" ?? err: has no members .start, .configureAudio
+// onAnimate {if (!= mIsReplica) {}} ??
 // implement EnvFollow from Gamma
 
 #include "al/app/al_App.hpp"
@@ -21,7 +21,6 @@ using namespace al;
 
 #include <iostream>
 using namespace std;
-
 
 
 float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
@@ -103,6 +102,7 @@ struct swarmOrb : DistributedApp {
   bool freeze = false; // <- for pausing sim
   double phase = 0;
   void onAnimate(double dt) {
+  if (isPrimary()) {
     if (freeze) return; // <- if freeze is true, then pause sim
     phase += dt;
     if (phase > 5) {
@@ -154,10 +154,12 @@ struct swarmOrb : DistributedApp {
       
       //swarm[i].velocity *= friction; // or apply friction here?
       verts.vertices()[i] = swarm[i].position; // skin mesh
+    }
     }  
   } 
 
   void onSound(AudioIOData& io) override{
+  if (isPrimary()) {
     float maxSamp = 0;
     while(io()) { 
       channelLeft = io.in(0);
@@ -173,6 +175,7 @@ struct swarmOrb : DistributedApp {
       io.out(3) = channelRight;
     }
   }
+  }
   
   bool onKeyDown(const Keyboard &k) override {
     if (k.key() == ' ') { // <- on spacebar, freeze or unfreeze simulation
@@ -184,7 +187,7 @@ struct swarmOrb : DistributedApp {
     return true;
   }
 
-  void onDraw(Graphics &g) { 
+  void onDraw(Graphics &g) override { 
     g.clear(0); // black background
     g.pointSize(pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
@@ -194,7 +197,7 @@ struct swarmOrb : DistributedApp {
 
 int main() {
   swarmOrb app; // instance of swarmOrb
-  AudioDevice alloAudio = AudioDevice("AlloAudio"); // declare audio device
+  AudioDevice alloAudio = AudioDevice("AlloAudio"); // declare audio device, with BlackHole (in0, in1) and speakers (out2, out3)
   alloAudio.print(); // print audio device details
   app.configureAudio(alloAudio, 48000, 128, 4, 2); // configureAudio
   app.start(); // start
