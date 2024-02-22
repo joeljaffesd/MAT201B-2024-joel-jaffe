@@ -8,6 +8,8 @@
 #include "al/app/al_GUIDomain.hpp"
 #include "al/app/al_DistributedApp.hpp"
 #include "al/app/al_OmniRendererDomain.hpp"
+#include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
+#include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
 //#include "al/scene/al_DistributedScene.hpp"
 //#include "al_ext/statedistribution/al_Serialize.hpp"
 using namespace al;
@@ -127,6 +129,15 @@ public:
 
   float channelLeft = 0;
   float channelRight = 0;
+
+  void onInit() override {
+    auto cuttleboneDomain =
+        CuttleboneStateSimulationDomain<State>::enableCuttlebone(this);
+    if (!cuttleboneDomain) {
+      std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
+      quit();
+    }
+  }
 
   void onCreate() {
   if (isPrimary()) {
