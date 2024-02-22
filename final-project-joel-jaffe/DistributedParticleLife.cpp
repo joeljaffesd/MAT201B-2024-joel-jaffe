@@ -13,6 +13,7 @@
 using namespace al;
 
 #include <iostream>
+#include <string>
 using namespace std;
 
 struct State {
@@ -39,7 +40,7 @@ class swarmOrb : public DistributedAppWithState<State> {
 public:
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
-  //Mesh slaveMesh;
+  //Mesh slaveMesh; <- moved to private:
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -88,12 +89,9 @@ public:
     setParameters(numTypes); // initial params
     state().masterMesh.primitive(Mesh::POINTS); // skin mesh as points
     slaveMesh.primitive(Mesh::POINTS);
-  } else {
-    for (int i = 0; i < numParticles; i++) {
-      //slaveMesh.vertex(state().masterMesh.vertices()[i]);
-      //slaveMesh.color(state().masterMesh.colors()[i]);
-    }
-    //slaveMesh.primitive(Mesh::POINTS);
+  } else { // if != primary...
+    slaveMesh.copy(state().masterMesh);
+    slaveMesh.primitive(Mesh::POINTS);
   }
   }
 
@@ -154,18 +152,9 @@ public:
       state().masterMesh.vertices()[i] = swarm[i].position; // skin mesh
       slaveMesh.vertices()[i] = state().masterMesh.vertices()[i];
     } 
-  } else {
-    for (int i = 0; i < numParticles; i++) {
-      //slaveMesh.vertices()[i] = state().masterMesh.vertices()[i];
-    }
+  } else { // if not primary... 
+    //slaveMesh.copy(state().masterMesh);
   }
-
-  if (isPrimary()) {
-    state().camera = pose();
-  } else {
-    pose() = state().camera;
-  }
-
   } 
   
   bool onKeyDown(const Keyboard &k) override {
@@ -199,7 +188,7 @@ public:
     g.clear(0); // black background
     g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
-    g.draw(state().masterMesh); // draw verts
+    g.draw(slaveMesh); // draw verts
   }
 
 private:
