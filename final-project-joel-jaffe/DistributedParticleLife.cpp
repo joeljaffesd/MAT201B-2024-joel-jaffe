@@ -19,8 +19,6 @@
 #include "al/app/al_OmniRendererDomain.hpp"
 #include "al_ext/statedistribution/al_CuttleboneDomain.hpp"
 #include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
-//#include "al/scene/al_DistributedScene.hpp"
-//#include "al_ext/statedistribution/al_Serialize.hpp"
 using namespace al;
 
 #include <iostream>
@@ -39,6 +37,7 @@ struct Particle { // Particle struct
   int type;
   Vec3f position; 
   Vec3f velocity;
+  HSV color;
 };
 
 struct SimulationState {
@@ -65,6 +64,7 @@ struct SimulationState {
       swarm[i].type = rnd::uniformi(0, numTypes - 1); // give random type
       swarm[i].position = randomVec3f(simScale); // give random pos within simScale 
       swarm[i].velocity = 0; // give initial velocity of 0
+      swarm[i].color = HSV (swarm[i].type * colorStep, 1.f, 1.f);
     }
   }
 
@@ -152,13 +152,13 @@ public:
     state().setParameters(state().numTypes);
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertex(state().swarm[i].position);
-      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f));
+      verts.color(state().swarm[i].color);
     }
     verts.primitive(Mesh::POINTS);
   } else { // if != primary...
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertex(state().swarm[i].position);
-      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f));
+      verts.color(state().swarm[i].color);
     }
     verts.primitive(Mesh::POINTS);
   }
