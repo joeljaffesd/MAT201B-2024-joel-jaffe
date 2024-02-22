@@ -35,7 +35,8 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
-struct swarmOrb : public DistributedAppWithState<State> {
+class swarmOrb : public DistributedAppWithState<State> {
+public:
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
   //Mesh slaveMesh;
@@ -71,6 +72,7 @@ struct swarmOrb : public DistributedAppWithState<State> {
   }
 
   void onCreate() {
+  if (isPrimary()) {
     for (int i = 0; i < numParticles; i++) {  // for each iter...
       Particle particle; // initialzie a particle
       particle.type = rnd::uniformi(0, numTypes - 1); // give random type
@@ -80,12 +82,19 @@ struct swarmOrb : public DistributedAppWithState<State> {
 
       state().masterMesh.vertex(particle.position); // append particle to mesh 
       state().masterMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
-      //slaveMesh.vertex(particle.position); // append particle to mesh 
-      //slaveMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
+      slaveMesh.vertex(particle.position); // append particle to mesh 
+      slaveMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
     }
     setParameters(numTypes); // initial params
     state().masterMesh.primitive(Mesh::POINTS); // skin mesh as points
+    slaveMesh.primitive(Mesh::POINTS);
+  } else {
+    for (int i = 0; i < numParticles; i++) {
+      //slaveMesh.vertex(state().masterMesh.vertices()[i]);
+      //slaveMesh.color(state().masterMesh.colors()[i]);
+    }
     //slaveMesh.primitive(Mesh::POINTS);
+  }
   }
 
   bool freeze = false; // <- for pausing sim
@@ -143,11 +152,11 @@ struct swarmOrb : public DistributedAppWithState<State> {
       
       //swarm[i].velocity *= friction; // or apply friction here?
       state().masterMesh.vertices()[i] = swarm[i].position; // skin mesh
-      //slaveMesh.vertices()[i] = State().masterMesh.vertices()[i];
+      slaveMesh.vertices()[i] = state().masterMesh.vertices()[i];
     } 
   } else {
     for (int i = 0; i < numParticles; i++) {
-      //slaveMesh.vertices()[i] = State().masterMesh.vertices()[i];
+      //slaveMesh.vertices()[i] = state().masterMesh.vertices()[i];
     }
   }
 
@@ -193,6 +202,8 @@ struct swarmOrb : public DistributedAppWithState<State> {
     g.draw(state().masterMesh); // draw verts
   }
 
+private:
+  Mesh slaveMesh;
 };
 
 int main() {
