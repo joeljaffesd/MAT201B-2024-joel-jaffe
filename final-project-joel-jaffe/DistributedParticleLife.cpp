@@ -8,25 +8,13 @@
 #include "al/app/al_GUIDomain.hpp"
 #include "al/app/al_DistributedApp.hpp"
 #include "al/app/al_OmniRendererDomain.hpp"
-#include "al/scene/al_DistributedScene.hpp"
-#include "al_ext/statedistribution/al_Serialize.hpp"
+//#include "al/scene/al_DistributedScene.hpp"
+//#include "al_ext/statedistribution/al_Serialize.hpp"
 using namespace al;
 
 #include <iostream>
 #include <string>
 using namespace std;
-
-struct State {
-  float pointSize;
-  Mesh masterMesh;
-  Pose camera;
-};
-
-struct Particle { // Particle struct
-  int type;
-  Vec3f position; 
-  Vec3f velocity;
-};
 
 float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -36,11 +24,18 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
-class swarmOrb : public DistributedAppWithState<State> {
-public:
+struct Particle { // Particle struct
+  int type;
+  Vec3f position; 
+  Vec3f velocity;
+};
+
+struct State {
+  // state member variables
+  float pointSize;
+  Pose camera;
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
-  //Mesh slaveMesh; <- moved to private:
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -51,10 +46,18 @@ public:
   float minDistances[numTypes][numTypes]; // minDistances table
   float radii[numTypes][numTypes]; // radii table
 
-  float channelLeft = 0;
-  float channelRight = 0;
-
   vector<Particle> swarm; // swarm vector
+
+  // state methods
+  void seed() {
+    for (int i = 0; i < numParticles; i++) {  // for each iter...
+      Particle particle; // initialzie a particle
+      particle.type = rnd::uniformi(0, numTypes - 1); // give random type
+      particle.position = randomVec3f(simScale); // give random pos within simScale 
+      particle.velocity = 0; // give initial velocity of 0
+      swarm.push_back(particle); // append to swarm vector
+    }
+  }
 
   void setParameters(int numTypes) { // define setParams function (seems to be working)
     for (int i = 0; i < numTypes; i++) {
@@ -72,40 +75,7 @@ public:
     }
   }
 
-  void onCreate() {
-  if (isPrimary()) {
-    for (int i = 0; i < numParticles; i++) {  // for each iter...
-      Particle particle; // initialzie a particle
-      particle.type = rnd::uniformi(0, numTypes - 1); // give random type
-      particle.position = randomVec3f(simScale); // give random pos within simScale 
-      particle.velocity = 0; // give initial velocity of 0
-      swarm.push_back(particle); // append to swarm vector
-
-      state().masterMesh.vertex(particle.position); // append particle to mesh 
-      state().masterMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
-      slaveMesh.vertex(particle.position); // append particle to mesh 
-      slaveMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
-    }
-    setParameters(numTypes); // initial params
-    state().masterMesh.primitive(Mesh::POINTS); // skin mesh as points
-    slaveMesh.primitive(Mesh::POINTS);
-  } else { // if != primary...
-    slaveMesh.copy(state().masterMesh);
-    slaveMesh.primitive(Mesh::POINTS);
-  }
-  }
-
-  bool freeze = false; // <- for pausing sim
-  float phase = 0;
-  void onAnimate(double dt) {
-  if (isPrimary()) {
-    if (freeze) return; // <- if freeze is true, then pause sim
-    phase += dt;
-    if (phase > 3) {
-      setParameters(numTypes);
-      phase = 0;
-    }
-
+  void update() {
     for (int i = 0; i < numParticles; i++) { // for each particle, ~60fps...
       float dis = 0; // initialize dis
       Vec3f direction = 0; // initialize direction
@@ -147,24 +117,66 @@ public:
       swarm[i].velocity += acceleration; // integrate acceleration
       swarm[i].velocity *= friction; // apply friction here?
       swarm[i].position += swarm[i].velocity; // integrate velocity
-      
       //swarm[i].velocity *= friction; // or apply friction here?
-      state().masterMesh.vertices()[i] = swarm[i].position; // skin mesh
-      slaveMesh.vertices()[i] = state().masterMesh.vertices()[i];
     } 
+  }
+};
+
+class swarmOrb : public DistributedAppWithState<State> {
+public:
+
+  float channelLeft = 0;
+  float channelRight = 0;
+
+  void onCreate() {
+  if (isPrimary()) {
+    state().seed();
+    state().setParameters(state().numTypes);
+    for (int i = 0; i < state().numParticles; i++) {
+      verts.vertex(state().swarm[i].position);
+      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f));
+    }
+    verts.primitive(Mesh::POINTS);
+  } else { // if != primary...
+    for (int i = 0; i < state().numParticles; i++) {
+      verts.vertex(state().swarm[i].position);
+      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f));
+    }
+    verts.primitive(Mesh::POINTS);
+  }
+  }
+
+  bool freeze = false; // <- for pausing sim
+  float phase = 0;
+  void onAnimate(double dt) {
+  if (isPrimary()) {
+    if (freeze) return; // <- if freeze is true, then pause sim
+    phase += dt;
+    if (phase > 3) {
+      state().setParameters(state().numTypes);
+      phase = 0;
+    }
+    state().update();
+    for (int i = 0; i < state().numParticles; i++) {
+      verts.vertices()[i] = state().swarm[i].position;
+    }
   } else { // if not primary... 
-    //slaveMesh.copy(state().masterMesh);
+    for (int i = 0; i < state().numParticles; i++) {
+      verts.vertices()[i] = state().swarm[i].position;
+    }
   }
   } 
   
   bool onKeyDown(const Keyboard &k) override {
+  if (isPrimary()) {
     if (k.key() == ' ') { // <- on spacebar, freeze or unfreeze simulation
       freeze = !freeze; // <- invert state of freeze
     }
     if (k.key() == '1') { // <- on 1, setParams
-      setParameters(numTypes);
+      state().setParameters(state().numTypes);
     }
     return true;
+  }
   }
 
   void onSound(AudioIOData& io) override{
@@ -188,11 +200,11 @@ public:
     g.clear(0); // black background
     g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
-    g.draw(slaveMesh); // draw verts
+    g.draw(verts); // draw verts
   }
 
 private:
-  Mesh slaveMesh;
+  Mesh verts;
 };
 
 int main() {
