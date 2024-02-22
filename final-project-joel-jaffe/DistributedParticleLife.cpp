@@ -44,9 +44,8 @@ struct Particle { // Particle struct
 struct SimulationState {
   // state member variables
   float pointSize;
-  Pose camera;
-  Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
-  Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
+  Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f};
+  Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0};
 
   static const int numTypes = 6; // numTypes
   static const int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -57,20 +56,12 @@ struct SimulationState {
   float minDistances[numTypes][numTypes]; // minDistances table
   float radii[numTypes][numTypes]; // radii table
 
-  //vector<Particle> swarm; // swarm vector (the culprit!?!)
   Particle swarm[numParticles];
 
 
   // state methods
   void seed() {
     for (int i = 0; i < numParticles; i++) {  // for each iter...
-      /*
-      Particle particle; // initialzie a particle
-      particle.type = rnd::uniformi(0, numTypes - 1); // give random type
-      particle.position = randomVec3f(simScale); // give random pos within simScale 
-      particle.velocity = 0; // give initial velocity of 0
-      swarm.push_back(particle); // append to swarm vector
-      */
       swarm[i].type = rnd::uniformi(0, numTypes - 1); // give random type
       swarm[i].position = randomVec3f(simScale); // give random pos within simScale 
       swarm[i].velocity = 0; // give initial velocity of 0
@@ -148,7 +139,7 @@ public:
 
   void onInit() override {
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<SimulationState>::enableCuttlebone(this);
+      CuttleboneStateSimulationDomain<SimulationState>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
