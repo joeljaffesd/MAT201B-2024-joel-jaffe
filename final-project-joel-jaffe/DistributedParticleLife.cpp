@@ -4,13 +4,6 @@
 // Particle life based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
 // Programming Chaos on YouTube
 
-//NOTES
-//only POD in STATE!!!!
-//what defines data as POD?
-//POD ~= is copyable
-//vector BAD
-//Vec3f[foo] = GOOD? i hope
-
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
 #include "al/math/al_Random.hpp"
@@ -22,7 +15,6 @@
 using namespace al;
 
 #include <iostream>
-#include <string>
 using namespace std;
 
 float fMap(float value, float in_min, float in_max, float out_min, float out_max) { // custom mapping function
@@ -35,9 +27,9 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
 
 struct Particle { // Particle struct
   int type;
+  float colorH; // <- this is the problem.
   Vec3f position; 
   Vec3f velocity;
-  HSV color;
 };
 
 struct SimulationState {
@@ -57,14 +49,13 @@ struct SimulationState {
 
   Particle swarm[numParticles];
 
-
   // state methods
   void seed() {
     for (int i = 0; i < numParticles; i++) {  // for each iter...
       swarm[i].type = rnd::uniformi(0, numTypes - 1); // give random type
       swarm[i].position = randomVec3f(simScale); // give random pos within simScale 
       swarm[i].velocity = 0; // give initial velocity of 0
-      swarm[i].color = HSV (swarm[i].type * colorStep, 1.f, 1.f);
+      swarm[i].colorH = swarm[i].type * colorStep;
     }
   }
 
@@ -77,9 +68,9 @@ struct SimulationState {
         }
         minDistances[i][j] = rnd::uniform<float>(.1, .05); // .1, .05 for simScale of 1
         radii[i][j] = rnd::uniform<float>(.5, .15); // .5, .15 for simScale of 1
-        cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
-        cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
-        cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
+        //cout << "forces[" << i << "][" << j << "]: " << forces[i][j] << endl;
+        //cout << "minDistances[" << i << "][" << j << "]: " << minDistances[i][j] << endl;
+        //cout << "radii[" << i << "][" << j << "]: " << radii[i][j] << endl;
       }
     }
   }
@@ -152,13 +143,15 @@ public:
     state().setParameters(state().numTypes);
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertex(state().swarm[i].position);
-      verts.color(state().swarm[i].color);
+      cout << state().swarm[i].colorH << endl;
+      verts.color(HSV(state().swarm[i].colorH, 1.f, 1.f));
     }
     verts.primitive(Mesh::POINTS);
   } else { // if != primary...
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertex(state().swarm[i].position);
-      verts.color(state().swarm[i].color);
+      cout << state().swarm[i].colorH << endl; // <- mostly 0s, plus some tiny numbers.
+      verts.color(HSV(state().swarm[i].colorH, 1.f, 1.f));
     }
     verts.primitive(Mesh::POINTS);
   }
