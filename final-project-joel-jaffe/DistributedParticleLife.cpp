@@ -1,6 +1,15 @@
-//Joel Jaffe February 2024
-//Based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
-//Programming Chaos on YouTube
+// Oraculum: Omnispherical Audio-Reactive Visuals for Electric Instruments
+// Joel Jaffe February 2024
+
+// Particle life based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
+// Programming Chaos on YouTube
+
+//NOTES
+//only POD in STATE!!!!
+//what defines data as POD?
+//POD ~= is copyable
+//vector BAD
+//Vec3f[foo] = GOOD? i hope
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -32,7 +41,7 @@ struct Particle { // Particle struct
   Vec3f velocity;
 };
 
-struct State {
+struct SimulationState {
   // state member variables
   float pointSize;
   Pose camera;
@@ -40,24 +49,31 @@ struct State {
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
 
   static const int numTypes = 6; // numTypes
-  int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
-  float colorStep = 1.f / numTypes; // colorStrep
+  static const int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
+  float colorStep = 1.f / numTypes; // colorStep
   float K = 0.05; // make smaller to slow sim (0.05 looks good for simScale around 1)
   float friction = 0.6; // make smaller to slow sim (0.6 looks good for a simScale around 1)
   float forces[numTypes][numTypes]; // forces table
   float minDistances[numTypes][numTypes]; // minDistances table
   float radii[numTypes][numTypes]; // radii table
 
-  vector<Particle> swarm; // swarm vector
+  //vector<Particle> swarm; // swarm vector (the culprit!?!)
+  Particle swarm[numParticles];
+
 
   // state methods
   void seed() {
     for (int i = 0; i < numParticles; i++) {  // for each iter...
+      /*
       Particle particle; // initialzie a particle
       particle.type = rnd::uniformi(0, numTypes - 1); // give random type
       particle.position = randomVec3f(simScale); // give random pos within simScale 
       particle.velocity = 0; // give initial velocity of 0
       swarm.push_back(particle); // append to swarm vector
+      */
+      swarm[i].type = rnd::uniformi(0, numTypes - 1); // give random type
+      swarm[i].position = randomVec3f(simScale); // give random pos within simScale 
+      swarm[i].velocity = 0; // give initial velocity of 0
     }
   }
 
@@ -124,7 +140,7 @@ struct State {
   }
 };
 
-class swarmOrb : public DistributedAppWithState<State> {
+class swarmOrb : public DistributedAppWithState<SimulationState> {
 public:
 
   float channelLeft = 0;
@@ -132,7 +148,7 @@ public:
 
   void onInit() override {
     auto cuttleboneDomain =
-        CuttleboneStateSimulationDomain<State>::enableCuttlebone(this);
+        CuttleboneStateSimulationDomain<SimulationState>::enableCuttlebone(this);
     if (!cuttleboneDomain) {
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
