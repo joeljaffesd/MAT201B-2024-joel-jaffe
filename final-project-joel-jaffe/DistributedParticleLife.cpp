@@ -1,4 +1,4 @@
-// Joel Jaffe February 2024
+//Joel Jaffe February 2024
 //Based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
 //Programming Chaos on YouTube
 
@@ -9,10 +9,17 @@
 #include "al/app/al_DistributedApp.hpp"
 #include "al/app/al_OmniRendererDomain.hpp"
 #include "al/scene/al_DistributedScene.hpp"
+#include "al_ext/statedistribution/al_Serialize.hpp"
 using namespace al;
 
 #include <iostream>
 using namespace std;
+
+struct State {
+  float pointSize;
+  Mesh masterMesh;
+  Pose camera;
+};
 
 struct Particle { // Particle struct
   int type;
@@ -28,14 +35,10 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
-struct swarmOrb : DistributedApp {
+struct swarmOrb : public DistributedAppWithState<State> {
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f}; // <- creates GUI parameter
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0}; // <- creates GUI parameter
-  Mesh verts; // create mesh for visualzing particles
-
-  DistributedScene scene1{"scene1", 0, TimeMasterMode::TIME_MASTER_GRAPHICS};
-  DistributedScene scene2{"scene2", 0, TimeMasterMode::TIME_MASTER_GRAPHICS};
-  ParameterPose navParameter{"nav"};
+  //Mesh slaveMesh;
 
   static const int numTypes = 6; // numTypes
   int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -48,7 +51,6 @@ struct swarmOrb : DistributedApp {
 
   float channelLeft = 0;
   float channelRight = 0;
-  float pointSize = 0;
 
   vector<Particle> swarm; // swarm vector
 
@@ -76,27 +78,14 @@ struct swarmOrb : DistributedApp {
       particle.velocity = 0; // give initial velocity of 0
       swarm.push_back(particle); // append to swarm vector
 
-      verts.vertex(particle.position); // append particle to mesh 
-      verts.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
+      state().masterMesh.vertex(particle.position); // append particle to mesh 
+      state().masterMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
+      //slaveMesh.vertex(particle.position); // append particle to mesh 
+      //slaveMesh.color(HSV(particle.type * colorStep, 1.f, 1.f)); // color based on type
     }
     setParameters(numTypes); // initial params
-    verts.primitive(Mesh::POINTS); // skin mesh as points
-
-    registerDynamicScene(scene1); // scene1 is shared from primary node
-    {
-      // Now connect scene2 so that it is shared from replica.
-      // This is what registerDynamicScene does behind the scenes,
-      // But we do it in reverse for scene2
-      if (isPrimary()) {
-        parameterServer().registerOSCConsumer(&scene2, scene2.name());
-      } else {
-        scene2.registerNotifier(parameterServer());
-        parameterServer().addListener("localhost", 9010);
-      }
-    }
-    title("Two Scenes");
-    parameterServer() << navParameter; // Synchronize nav
-    parameterServer().print();
+    state().masterMesh.primitive(Mesh::POINTS); // skin mesh as points
+    //slaveMesh.primitive(Mesh::POINTS);
   }
 
   bool freeze = false; // <- for pausing sim
@@ -153,21 +142,21 @@ struct swarmOrb : DistributedApp {
       swarm[i].position += swarm[i].velocity; // integrate velocity
       
       //swarm[i].velocity *= friction; // or apply friction here?
-      verts.vertices()[i] = swarm[i].position; // skin mesh
+      state().masterMesh.vertices()[i] = swarm[i].position; // skin mesh
+      //slaveMesh.vertices()[i] = State().masterMesh.vertices()[i];
     } 
-  }
-  
-  else {
-    // ??
+  } else {
+    for (int i = 0; i < numParticles; i++) {
+      //slaveMesh.vertices()[i] = State().masterMesh.vertices()[i];
+    }
   }
 
   if (isPrimary()) {
-    navParameter.set(nav());
-    } else {
-      pose() = navParameter.get();
-    }
-    scene1.update(dt);
-    scene2.update(dt);
+    state().camera = pose();
+  } else {
+    pose() = state().camera;
+  }
+
   } 
   
   bool onKeyDown(const Keyboard &k) override {
@@ -192,19 +181,18 @@ struct swarmOrb : DistributedApp {
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
       }
-      pointSize = 10 * maxSamp;
+      state().pointSize = 10 * maxSamp;
     }
   }
   }
 
   void onDraw(Graphics &g) { 
     g.clear(0); // black background
-    g.pointSize(pointSize); // set pointSize
+    g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
-    g.draw(verts); // draw verts
-    scene1.render(g);
-    scene2.render(g);
+    g.draw(state().masterMesh); // draw verts
   }
+
 };
 
 int main() {
