@@ -26,14 +26,13 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
 } 
 
 struct Particle { // Particle struct
-  int type;
-  float colorH; // <- this is the problem.
+  int type; // <- this is the problem.
   Vec3f position; 
   Vec3f velocity;
 };
 
 struct SimulationState {
-  // state member variables
+  // state() member variables
   float pointSize;
   Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f};
   Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0};
@@ -49,13 +48,12 @@ struct SimulationState {
 
   Particle swarm[numParticles];
 
-  // state methods
+  // state() methods
   void seed() {
     for (int i = 0; i < numParticles; i++) {  // for each iter...
       swarm[i].type = rnd::uniformi(0, numTypes - 1); // give random type
       swarm[i].position = randomVec3f(simScale); // give random pos within simScale 
       swarm[i].velocity = 0; // give initial velocity of 0
-      swarm[i].colorH = swarm[i].type * colorStep;
     }
   }
 
@@ -143,15 +141,13 @@ public:
     state().setParameters(state().numTypes);
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertex(state().swarm[i].position);
-      cout << state().swarm[i].colorH << endl;
-      verts.color(HSV(state().swarm[i].colorH, 1.f, 1.f));
+      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f));
     }
     verts.primitive(Mesh::POINTS);
   } else { // if != primary...
     for (int i = 0; i < state().numParticles; i++) {
-      verts.vertex(state().swarm[i].position);
-      cout << state().swarm[i].colorH << endl; // <- mostly 0s, plus some tiny numbers.
-      verts.color(HSV(state().swarm[i].colorH, 1.f, 1.f));
+      verts.vertex(state().swarm[i].position); // initializes wrong, overridden by onAnimate
+      verts.color(HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f)); // initializes wrong, overridden by onAnimate
     }
     verts.primitive(Mesh::POINTS);
   }
@@ -174,6 +170,7 @@ public:
   } else { // if not primary... 
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertices()[i] = state().swarm[i].position;
+      verts.colors()[i] = HSV(state().swarm[i].type * state().colorStep, 1.f, 1.f);
     }
   }
   } 
