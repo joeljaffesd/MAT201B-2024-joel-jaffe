@@ -158,11 +158,13 @@ public:
   void onAnimate(double dt) {
   if (isPrimary()) {
     if (freeze) return; // <- if freeze is true, then pause sim
+    /*
     phase += dt;
     if (phase > 3) {
       state().setParameters(state().numTypes);
       phase = 0;
     }
+    */
     state().update();
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertices()[i] = state().swarm[i].position;
@@ -187,8 +189,33 @@ public:
   }
   }
 
+
+  bool hold = false;
+  float lastBufferPower = 0;
+  float threshAmp = 0.3;
+  int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
+    
+    // onset detection to trigger state().setParamaters...
+    float myBuffer [io.framesPerBuffer()];
+    float bufferPower = 0;
+    for (int i = 0; i < io.framesPerBuffer(); i++) {
+      myBuffer[i] = io.in(0, i) + io.in(1, i);
+      bufferPower += myBuffer[i] * myBuffer[i];
+    }
+    bufferPower /= io.framesPerBuffer();
+    lastBufferPower = bufferPower;
+    if (bufferPower > threshAmp && !hold) {
+      boomCounter += 1;
+      cout << "BOOM!" << boomCounter << endl;
+      state().setParameters(state().numTypes);
+      hold = true;
+    } else if (bufferPower < threshAmp && hold) {
+      hold = false;
+    }
+
+
     float maxSamp = 0;
     while(io()) { 
       channelLeft = io.in(0);
