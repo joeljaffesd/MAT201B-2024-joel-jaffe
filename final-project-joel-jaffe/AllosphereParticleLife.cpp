@@ -203,7 +203,7 @@ public:
     float myBuffer [io.framesPerBuffer()];
     float bufferPower = 0;
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i) + io.in(1, i);
+      myBuffer[i] = io.in(0, i);
       bufferPower += myBuffer[i] * myBuffer[i];
     }
     bufferPower /= io.framesPerBuffer();
