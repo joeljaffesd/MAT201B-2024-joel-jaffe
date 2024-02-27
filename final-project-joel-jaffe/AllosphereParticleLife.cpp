@@ -24,6 +24,16 @@ float fMap(float value, float in_min, float in_max, float out_min, float out_max
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+float dBtoA (float dBVal) {
+  float ampVal = pow(10.f, dBVal / 20.f);
+  return ampVal;
+}
+
+float ampTodB (float ampVal) {
+  float dBVal = 20.f * log10f(abs(ampVal));
+  return dBVal;
+}
+
 Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing random coords
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
@@ -128,6 +138,9 @@ public:
 
   float channelLeft = 0;
   float channelRight = 0;
+  Parameter volControl{"volControl", "", -0.f, -96.f, 0.f};
+  Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
+  Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
 
   void onInit() override {
     auto cuttleboneDomain =
@@ -136,6 +149,14 @@ public:
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
     }
+  if (isPrimary()) {
+    // set up GUI
+    auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
+    auto &gui = GUIdomain->newGUI();
+    gui.add(volControl); // add parameter to GUI
+    gui.add(volMeter); // add parameter to GUI
+    gui.add(dBThresh); // add parameter to GUI
+  }
   }
 
   void onCreate() {
@@ -195,17 +216,19 @@ public:
 
   bool hold = false;
   float lastBufferPower = 0; // <- currently unused
-  float threshAmp = 0.3;
   int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
+    float threshAmp = dBtoA(dBThresh);
     // onset detection to trigger state().setParamaters
     float myBuffer [io.framesPerBuffer()];
     float bufferPower = 0;
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i);
+      myBuffer[i] = io.in(0, i) * dBtoA(volControl); // <- scale by volControl here?
+      //myBuffer[i] = io.in(0, i);
       bufferPower += myBuffer[i] * myBuffer[i];
     }
+   //bufferPower *= dBtoA(volControl); // <- or here?
     bufferPower /= io.framesPerBuffer();
     lastBufferPower = bufferPower;
     if (bufferPower > threshAmp && !hold) {
@@ -220,13 +243,14 @@ public:
     float maxSamp = 0;
     while(io()) { 
       for (int i = 0; i < io.channelsOut(); i++) {
-        io.out(i) = io.in(0) / io.channelsOut();
+        io.out(i) = io.in(0) / io.channelsOut() * dBtoA(volControl);
       }
-      float mixDown = abs(io.in(0));
+      volMeter = ampTodB(io.in(0) * dBtoA(volControl));
+      float mixDown = abs(io.in(0) * dBtoA(volControl));
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
       }
-      state().pointSize = 10 * maxSamp;
+      state().pointSize = 20 * maxSamp;
     }
   }
   }
