@@ -138,9 +138,10 @@ public:
 
   float channelLeft = 0;
   float channelRight = 0;
-  Parameter volControl{"volControl", "", -96.f, -96.f, 0.f};
+  Parameter volControl{"volControl", "", 0.f, -96.f, 0.f};
   Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
   Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
+  Parameter muteToggle{"muteToggle", "", 0.f, 0.f, 1.f};
 
   void onInit() override {
     auto cuttleboneDomain =
@@ -209,6 +210,14 @@ public:
     if (k.key() == '1') { // <- on 1, setParams
       state().setParameters(state().numTypes);
     }
+    if (k.key() == 'm') { // <- on m, muteToggle
+      if (muteToggle == 0) {
+        muteToggle = 1.f;
+      } else {
+        muteToggle = 0.f;
+      }
+      cout << "Mute Status: " << muteToggle << endl;
+    }
     return true;
   }
   }
@@ -243,9 +252,9 @@ public:
     float maxSamp = 0;
     while(io()) { 
       for (int i = 0; i < io.channelsOut(); i++) {
-        io.out(i) = io.in(0) / io.channelsOut() * dBtoA(volControl);
+        io.out(i) = (io.in(0) / io.channelsOut()) * dBtoA(volControl) * muteToggle;
       }
-      volMeter = ampTodB(io.in(0) * dBtoA(volControl));
+      volMeter = ampTodB(io.in(0) * dBtoA(volControl) * muteToggle);
       float mixDown = abs(io.in(0) * dBtoA(volControl));
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
