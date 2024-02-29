@@ -141,7 +141,7 @@ public:
   Parameter volControl{"volControl", "", 0.f, -96.f, 0.f};
   Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
   Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
-  Parameter muteToggle{"muteToggle", "", 0.f, 0.f, 1.f};
+  ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
 
   void onInit() override {
     auto cuttleboneDomain =
@@ -157,6 +157,7 @@ public:
     gui.add(volControl); // add parameter to GUI
     gui.add(volMeter); // add parameter to GUI
     gui.add(dBThresh); // add parameter to GUI
+    gui.add(audioOutput); // add parameter to GUI
   }
   }
 
@@ -211,12 +212,8 @@ public:
       state().setParameters(state().numTypes);
     }
     if (k.key() == 'm') { // <- on m, muteToggle
-      if (muteToggle == 0) {
-        muteToggle = 1.f;
-      } else {
-        muteToggle = 0.f;
-      }
-      cout << "Mute Status: " << muteToggle << endl;
+      audioOutput = !audioOutput;
+      cout << "Mute Status: " << audioOutput << endl;
     }
     return true;
   }
@@ -234,10 +231,8 @@ public:
     float bufferPower = 0;
     for (int i = 0; i < io.framesPerBuffer(); i++) {
       myBuffer[i] = io.in(0, i) * dBtoA(volControl); // <- scale by volControl here?
-      //myBuffer[i] = io.in(0, i);
       bufferPower += myBuffer[i] * myBuffer[i];
     }
-   //bufferPower *= dBtoA(volControl); // <- or here?
     bufferPower /= io.framesPerBuffer();
     lastBufferPower = bufferPower;
     if (bufferPower > threshAmp && !hold) {
@@ -252,9 +247,9 @@ public:
     float maxSamp = 0;
     while(io()) { 
       for (int i = 0; i < io.channelsOut(); i++) {
-        io.out(i) = (io.in(0) / io.channelsOut()) * dBtoA(volControl) * muteToggle;
+        io.out(i) = (io.in(0) / io.channelsOut()) * dBtoA(volControl) * audioOutput;
       }
-      volMeter = ampTodB(io.in(0) * dBtoA(volControl) * muteToggle);
+      volMeter = ampTodB(io.in(0) * dBtoA(volControl) * audioOutput);
       float mixDown = abs(io.in(0) * dBtoA(volControl));
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
@@ -277,8 +272,8 @@ private:
 
 int main() {
   swarmOrb app;
-  AudioDevice alloAudio = AudioDevice("AlloAudio"); // <- investigate proper device initialization for the sphere
+  AudioDevice alloAudio = AudioDevice("ECHO X5"); // <- investigate proper device initialization for the sphere
   alloAudio.print();
-  app.configureAudio(alloAudio, 48000, 128, alloAudio.channelsOutMax(), 1);
+  app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 1);
   app.start();
 }

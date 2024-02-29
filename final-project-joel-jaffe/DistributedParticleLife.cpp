@@ -1,8 +1,11 @@
 // Oraculum: Omnispherical Audio-Reactive Visuals for Electric Instruments
 // Joel Jaffe February 2024
 
-// Particle life based on https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
+// Particle life based on
+// https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
 // Programming Chaos on YouTube
+
+// This implementation is optimized for stereo input to variable number of outputs
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -21,12 +24,22 @@ float fMap(float value, float in_min, float in_max, float out_min, float out_max
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+float dBtoA (float dBVal) {
+  float ampVal = pow(10.f, dBVal / 20.f);
+  return ampVal;
+}
+
+float ampTodB (float ampVal) {
+  float dBVal = 20.f * log10f(abs(ampVal));
+  return dBVal;
+}
+
 Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing random coords
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
 struct Particle { // Particle struct
-  int type; // <- this is the problem.
+  int type;
   Vec3f position; 
   Vec3f velocity;
 };
@@ -125,6 +138,9 @@ public:
 
   float channelLeft = 0;
   float channelRight = 0;
+  Parameter volControl{"volControl", "", 0.f, -96.f, 0.f};
+  Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
+  Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
 
   void onInit() override {
     auto cuttleboneDomain =
@@ -133,6 +149,14 @@ public:
       std::cerr << "ERROR: Could not start Cuttlebone. Quitting." << std::endl;
       quit();
     }
+  if (isPrimary()) {
+    // set up GUI
+    auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
+    auto &gui = GUIdomain->newGUI();
+    gui.add(volControl); // add parameter to GUI
+    gui.add(volMeter); // add parameter to GUI
+    gui.add(dBThresh); // add parameter to GUI
+  }
   }
 
   void onCreate() {
@@ -158,13 +182,6 @@ public:
   void onAnimate(double dt) {
   if (isPrimary()) {
     if (freeze) return; // <- if freeze is true, then pause sim
-    /*
-    phase += dt;
-    if (phase > 3) {
-      state().setParameters(state().numTypes);
-      phase = 0;
-    }
-    */
     state().update();
     for (int i = 0; i < state().numParticles; i++) {
       verts.vertices()[i] = state().swarm[i].position;
@@ -191,17 +208,16 @@ public:
 
 
   bool hold = false;
-  float lastBufferPower = 0;
-  float threshAmp = 0.3;
+  float lastBufferPower = 0; // <- currently unused
   int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
-    
-    // onset detection to trigger state().setParamaters...
+    float threshAmp = dBtoA(dBThresh);
+    // onset detection to trigger state().setParamaters
     float myBuffer [io.framesPerBuffer()];
     float bufferPower = 0;
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i) + io.in(1, i);
+      myBuffer[i] = io.in(0, i) * dBtoA(volControl); // <- scale by volControl here?
       bufferPower += myBuffer[i] * myBuffer[i];
     }
     bufferPower /= io.framesPerBuffer();
@@ -215,18 +231,21 @@ public:
       hold = false;
     }
 
-
     float maxSamp = 0;
     while(io()) { 
-      channelLeft = io.in(0);
-      channelRight = io.in(1);
-      io.out(2) = channelLeft;
-      io.out(3) = channelRight;
-      float mixDown = abs(channelLeft + channelRight);
+      for (int i = 0; i < io.channelsOut(); i++) {
+        if (i % 2 == 0) {
+          io.out(i) = (io.in(0) / io.channelsOut()) * dBtoA(volControl);
+        } else {
+          io.out(i) = (io.in(1) / io.channelsOut()) * dBtoA(volControl);
+        }
+      }
+      volMeter = ampTodB((io.in(0) + io.in(1)) * dBtoA(volControl));
+      float mixDown = abs((io.in(0) + io.in(1)) * dBtoA(volControl));
       if (mixDown > maxSamp) {
         maxSamp = mixDown;
       }
-      state().pointSize = 10 * maxSamp;
+      state().pointSize = 20 * maxSamp;
     }
   }
   }
@@ -244,8 +263,8 @@ private:
 
 int main() {
   swarmOrb app;
-  AudioDevice alloAudio = AudioDevice("AlloAudio");
+  AudioDevice alloAudio = AudioDevice("AlloAudio"); // <- investigate proper device initialization for the sphere
   alloAudio.print();
-  app.configureAudio(alloAudio, 48000, 128, 4, 2);
+  app.configureAudio(alloAudio, 48000, 128, alloAudio.channelsOutMax(), 2);
   app.start();
 }
