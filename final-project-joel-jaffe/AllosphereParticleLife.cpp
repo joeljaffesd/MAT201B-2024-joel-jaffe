@@ -138,7 +138,7 @@ public:
 
   float channelLeft = 0;
   float channelRight = 0;
-  Parameter volControl{"volControl", "", -0.f, -96.f, 0.f};
+  Parameter volControl{"volControl", "", -96.f, -96.f, 0.f};
   Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
   Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
 
