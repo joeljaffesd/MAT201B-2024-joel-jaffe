@@ -7,6 +7,10 @@
 
 // This implementation is optimized for mono input in UCSB's Allosphere
 
+// TO DO
+// -tune envelope follower
+// -use different frequency bands to drive different behaviors
+
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
 #include "al/math/al_Random.hpp"
@@ -38,6 +42,35 @@ Vec3f randomVec3f(float scale) { // <- Function that returns a Vec2f containing 
   return Vec3f(rnd::uniformS(), rnd::uniformS(), rnd::uniformS()) * scale;
 } 
 
+class EnvFollower { // implementation based on https://www.musicdsp.org/en/latest/Analysis/97-envelope-detector.html
+public:
+  EnvFollower (float sampleRate, float attackMs, float releaseMs) {
+    attackCoef = exp(-1.0f / (sampleRate * (attackMs / 1000)));
+    releaseCoef = exp(-1.0f / (sampleRate * (releaseMs / 1000)));
+    envOut = 0.f;
+  }
+
+  float processBuffer (float samples[], int size) {
+    for (int i = 0; i < size; i++) {
+      float envIn = fabs(samples[i]);
+      if (envOut < envIn) {
+        envOut = envIn + attackCoef * (envOut - envIn);
+      } else {
+        envOut = envIn + releaseCoef * (envOut - envIn);
+      }
+    }
+    return envOut;
+  }
+
+private:
+  float sampleRate;
+  float attackMs;
+  float releaseMs;
+  float attackCoef;
+  float releaseCoef;
+  float envOut;
+};
+
 struct Particle { // Particle struct
   int type; // <- this is the problem.
   Vec3f position; 
@@ -47,8 +80,8 @@ struct Particle { // Particle struct
 struct SimulationState {
   // state() member variables
   float pointSize;
-  Parameter simScale{"/simScale", "", 0.5f, 0.f, 1.f};
-  Parameter springConstant{"/springConstant", "", 0.4, 0.0, 1.0};
+  float simScale = 0.5f;
+  float springConstant = 0.4f;
 
   static const int numTypes = 6; // numTypes
   static const int numParticles = 1000; // numParticles (1000 seems to be the limit for my M2 Max)
@@ -135,12 +168,11 @@ struct SimulationState {
 
 class swarmOrb : public DistributedAppWithState<SimulationState> {
 public:
-
-  float channelLeft = 0;
-  float channelRight = 0;
-  Parameter volControl{"volControl", "", 0.f, -96.f, 0.f};
-  Parameter volMeter{"/volMeter", "", -96.f, -96.f, 6.f};
+  Parameter volControl{"volControl", "", 0.f, -96.f, 6.f};
+  Parameter rmsMeter{"/rmsMeter", "", -96.f, -96.f, 0.f};
   Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f};
+  Parameter envAttack{"/envAttack", "", 10.f, 1.f, 50.f};
+  Parameter envRelease{"/envRelease", "", 250.f, 10.f, 500.f};
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
 
   void onInit() override {
@@ -155,8 +187,10 @@ public:
     auto GUIdomain = GUIDomain::enableGUI(defaultWindowDomain());
     auto &gui = GUIdomain->newGUI();
     gui.add(volControl); // add parameter to GUI
-    gui.add(volMeter); // add parameter to GUI
+    gui.add(rmsMeter); // add parameter to GUI
     gui.add(dBThresh); // add parameter to GUI
+    gui.add(envAttack); // add parameter to GUI
+    gui.add(envRelease); // add parameter to GUI
     gui.add(audioOutput); // add parameter to GUI
   }
   }
@@ -219,22 +253,31 @@ public:
   }
   }
 
-
+  // audio analysis, including:
+  // -amplitude thresholding to trigger state().setParamaters
+  // -enveloper follower to drive pointSize
+  // -RMS calculation for rmsMeter
   bool hold = false;
-  float lastBufferPower = 0; // <- currently unused
   int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
-    float threshAmp = dBtoA(dBThresh);
-    // onset detection to trigger state().setParamaters
-    float myBuffer [io.framesPerBuffer()];
-    float bufferPower = 0;
+    EnvFollower envFollow (io.framesPerSecond(), envAttack, envRelease); // instance of EnvFollower
+    float myBuffer [io.framesPerBuffer()]; // initialize myBuffer
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i) * dBtoA(volControl); // <- scale by volControl here?
+      myBuffer[i] = io.in(0, i); // populate myBuffer with samples
+    }
+    float threshAmp = dBtoA(dBThresh); // set threshAmp
+    float bufferPower = 0; // initialize bufferPower
+    for (int i = 0; i < io.framesPerBuffer(); i++) {
+      myBuffer[i] = io.in(0, i) * dBtoA(volControl); // populate myBuffer with samples
       bufferPower += myBuffer[i] * myBuffer[i];
     }
+    // Envelope following
+    state().pointSize = 200 * envFollow.processBuffer(myBuffer, io.framesPerBuffer());
+
+    // RMS calculation + amplitude thresholding
     bufferPower /= io.framesPerBuffer();
-    lastBufferPower = bufferPower;
+    rmsMeter = ampTodB(bufferPower);
     if (bufferPower > threshAmp && !hold) {
       boomCounter += 1;
       cout << "BOOM!" << boomCounter << endl;
@@ -244,17 +287,11 @@ public:
       hold = false;
     }
 
-    float maxSamp = 0;
+    // audio throughput
     while(io()) { 
       for (int i = 0; i < io.channelsOut(); i++) {
-        io.out(i) = (io.in(0) / io.channelsOut()) * dBtoA(volControl) * audioOutput;
+        io.out(i) = io.in(0) * dBtoA(volControl) * audioOutput;
       }
-      volMeter = ampTodB(io.in(0) * dBtoA(volControl) * audioOutput);
-      float mixDown = abs(io.in(0) * dBtoA(volControl));
-      if (mixDown > maxSamp) {
-        maxSamp = mixDown;
-      }
-      state().pointSize = 20 * maxSamp;
     }
   }
   }
