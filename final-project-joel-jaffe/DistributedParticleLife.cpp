@@ -168,9 +168,9 @@ class swarmOrb : public DistributedAppWithState<SimulationState> {
 public:
   Parameter volControl{"volControl", "", 0.f, -96.f, 6.f};
   Parameter rmsMeter{"/rmsMeter", "", -96.f, -96.f, 0.f};
-  Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f}; 
-  Parameter envAttack{"/envAttack", "", 10.f, 1.f, 50.f}; // 7.2 looks good!
-  Parameter envRelease{"/envRelease", "", 250.f, 10.f, 500.f}; // 270 looks good!
+  Parameter dBThresh{"/dBThresh", "", -17.f, -96.f, 0.f}; // -17 great for Tom Sawyer
+  Parameter envAttack{"/envAttack", "", 11.8f, 1.f, 50.f}; // 7.2 looks good!, 11.8!
+  Parameter envRelease{"/envRelease", "", 399.f, 10.f, 500.f}; // 270 looks good! 399!
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
 
   void onInit() override {
@@ -255,21 +255,27 @@ public:
   // -amplitude thresholding to trigger state().setParamaters
   // -enveloper follower to drive pointSize
   // -RMS calculation for rmsMeter
+
   bool hold = false;
   int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
+
     EnvFollower envFollow (io.framesPerSecond(), envAttack, envRelease); // instance of EnvFollower
+
     float myBuffer [io.framesPerBuffer()]; // initialize myBuffer
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i); // populate myBuffer with samples
+      myBuffer[i] = io.in(0, i) + io.in(1, i); // populate myBuffer with samples
     }
+
     float threshAmp = dBtoA(dBThresh); // set threshAmp
     float bufferPower = 0; // initialize bufferPower
+
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i) * dBtoA(volControl); // populate myBuffer with samples
+      myBuffer[i] *= dBtoA(volControl); // scale by volControl 
       bufferPower += myBuffer[i] * myBuffer[i];
     }
+
     // Envelope following
     state().pointSize = 200 * envFollow.processBuffer(myBuffer, io.framesPerBuffer());
 
