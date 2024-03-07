@@ -21,6 +21,8 @@
 #include "al_ext/statedistribution/al_CuttleboneStateSimulationDomain.hpp"
 using namespace al;
 
+#include "Gamma/SamplePlayer.h"
+
 #include <iostream>
 using namespace std;
 
@@ -170,10 +172,12 @@ class swarmOrb : public DistributedAppWithState<SimulationState> {
 public:
   Parameter volControl{"volControl", "", 0.f, -96.f, 6.f};
   Parameter rmsMeter{"/rmsMeter", "", -96.f, -96.f, 0.f};
-  Parameter dBThresh{"/dBThresh", "", -21.f, -96.f, 0.f}; // -17 great for Tom Sawyer
+  Parameter dBThresh{"/dBThresh", "", -6.f, -96.f, 0.f}; // -17 great for Tom Sawyer
   Parameter envAttack{"/envAttack", "", 11.8f, 1.f, 50.f}; // 7.2 looks good!, 11.8!
   Parameter envRelease{"/envRelease", "", 399.f, 10.f, 500.f}; // 270 looks good! 399!
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
+  ParameterBool filePlayback{"filePlayback", "", false, 0.f, 1.f};
+  gam::SamplePlayer<float, gam::ipl::Linear, gam::phsInc::Loop> player;
 
   void onInit() override {
     auto cuttleboneDomain =
@@ -192,6 +196,11 @@ public:
     gui.add(envAttack); // add parameter to GUI
     gui.add(envRelease); // add parameter to GUI
     gui.add(audioOutput); // add parameter to GUI
+    gui.add(filePlayback); // add parameter to GUI
+
+    //load file to player
+    player.load("../Resources/HuckFinn.wav");
+    //player.rate(AudioData.channelsOut()); // <- set to function of channels out
   }
   }
 
@@ -242,24 +251,49 @@ public:
       audioOutput = !audioOutput;
       cout << "Mute Status: " << audioOutput << endl;
     }
+    if (k.key() == 'p') { // <- on p, playTrack
+      filePlayback = !filePlayback;
+      player.reset();
+      cout << "File Playback: " << filePlayback << endl; 
+    }
     return true;
   }
   }
 
-  // audio analysis, including:
-  // -amplitude thresholding to trigger state().setParamaters
-  // -enveloper follower to drive pointSize
-  // -RMS calculation for rmsMeter
   bool hold = false;
   int boomCounter = 0;
   void onSound(AudioIOData& io) override{
   if (isPrimary()) {
-
     EnvFollower envFollow (io.framesPerSecond(), envAttack, envRelease); // instance of EnvFollower
+    
+    // audio throughput
+    while(io()) { 
+    if (filePlayback) {
+      for (int i = 0; i < io.channelsOut(); i++) {
+        if (i % 2 == 0) {
+          io.out(i) = player(0) * dBtoA(volControl) * audioOutput;
+        } else {
+          io.out(i) = player(1) * dBtoA(volControl) * audioOutput;
+        }
+      }
+    } else {
+      for (int i = 0; i < io.channelsOut(); i++) {
+        io.out(i) = io.in(0) * dBtoA(volControl) * audioOutput; // <- feedback risk!
+      }
+    }
+    }
 
+    // audio analysis, including:
+    // -amplitude thresholding to trigger state().setParamaters
+    // -enveloper follower to drive pointSize
+    // -RMS calculation for rmsMeter
     float myBuffer [io.framesPerBuffer()]; // initialize myBuffer
     for (int i = 0; i < io.framesPerBuffer(); i++) {
-      myBuffer[i] = io.in(0, i); // populate myBuffer with samples
+      if (filePlayback) {
+        myBuffer[i] = io.out(0, i) + io.out(1, i); // populate myBuffer with samples
+      } else {
+        myBuffer[i] = io.in(0, i); // populate myBuffer with samples
+      }
     }
 
     float threshAmp = dBtoA(dBThresh); // set threshAmp
@@ -283,13 +317,6 @@ public:
     } else if (bufferPower < threshAmp && hold) {
       hold = false;
     }
-
-    // audio throughput
-    while(io()) { 
-      for (int i = 0; i < io.channelsOut(); i++) {
-        io.out(i) = io.in(0) * dBtoA(volControl) * audioOutput;
-      }
-    }
   }
   }
 
@@ -308,6 +335,7 @@ int main() {
   swarmOrb app;
   AudioDevice alloAudio = AudioDevice("ECHO X5");
   alloAudio.print();
-  app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 1);
+  app.player.rate(1.0 / alloAudio.channelsOutMax());
+  app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
   app.start();
 }
