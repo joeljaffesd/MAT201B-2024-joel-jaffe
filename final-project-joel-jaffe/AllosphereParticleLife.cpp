@@ -5,11 +5,11 @@
 // https://www.youtube.com/watch?v=xiUpAeos168&list=PLZ1w5M-dmhlGWtqzaC2aSLfQFtp0Dz-F_&index=3
 // Programming Chaos on YouTube
 
-// This implementation is optimized for mono input in UCSB's Allosphere
+// This implementation is optimized for use in UCSB's Allosphere
 
 // TO DO
-// -tune envelope follower
-// -use different frequency bands to drive different behaviors
+// -disable stereo rendering
+// -smooth pointSize with filter
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -200,7 +200,6 @@ public:
 
     //load file to player
     player.load("../Resources/HuckFinn.wav");
-    //player.rate(AudioData.channelsOut()); // <- set to function of channels out
   }
   }
 
@@ -220,6 +219,7 @@ public:
     }
     verts.primitive(Mesh::POINTS);
   }
+  //Window().DOUBLE_BUF; // <- disables stereo rendering?
   }
 
   bool freeze = false; // <- for pausing sim
@@ -333,9 +333,18 @@ private:
 
 int main() {
   swarmOrb app;
-  AudioDevice alloAudio = AudioDevice("ECHO X5");
-  alloAudio.print();
-  app.player.rate(1.0 / alloAudio.channelsOutMax());
-  app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
+
+  if (al::Socket::hostName() == "ar01") { // if in AlloSphere...
+    AudioDevice alloAudio = AudioDevice("ECHO X5");
+    alloAudio.print();
+    app.player.rate(1.0 / alloAudio.channelsOutMax());
+    app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
+  } else { // if not... 
+    AudioDevice alloAudio = AudioDevice("AlloAudio");
+    alloAudio.print();
+    app.player.rate(1.0 / alloAudio.channelsOutMax());
+    app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
+  }
+
   app.start();
 }
