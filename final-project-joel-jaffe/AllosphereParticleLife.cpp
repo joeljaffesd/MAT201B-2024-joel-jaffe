@@ -65,9 +65,6 @@ public:
   }
 
 private:
-  float sampleRate;
-  float attackMs;
-  float releaseMs;
   float attackCoef;
   float releaseCoef;
   float envOut;
