@@ -10,6 +10,7 @@
 // TO DO
 // -disable stereo rendering
 // -smooth pointSize with filter
+// -tune logarithmic scaling for pointSize
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -169,9 +170,10 @@ class swarmOrb : public DistributedAppWithState<SimulationState> {
 public:
   Parameter volControl{"volControl", "", 0.f, -96.f, 6.f};
   Parameter rmsMeter{"/rmsMeter", "", -96.f, -96.f, 0.f};
-  Parameter dBThresh{"/dBThresh", "", -6.f, -96.f, 0.f}; // -17 great for Tom Sawyer
-  Parameter envAttack{"/envAttack", "", 11.8f, 1.f, 50.f}; // 7.2 looks good!, 11.8!
+  Parameter dBThresh{"/dBThresh", "", -4.f, -96.f, 0.f}; // -17 great for Tom Sawyer
+  Parameter envAttack{"/envAttack", "", 32.f, 1.f, 50.f}; // 7.2 looks good!, 11.8!
   Parameter envRelease{"/envRelease", "", 399.f, 10.f, 500.f}; // 270 looks good! 399!
+  Parameter pointSizeOffset{"/pointSizeOffset", "", 2.f, 0.f, 10.f};
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
   ParameterBool filePlayback{"filePlayback", "", false, 0.f, 1.f};
   gam::SamplePlayer<float, gam::ipl::Linear, gam::phsInc::Loop> player;
@@ -192,9 +194,10 @@ public:
     gui.add(dBThresh); // add parameter to GUI
     gui.add(envAttack); // add parameter to GUI
     gui.add(envRelease); // add parameter to GUI
+    gui.add(pointSizeOffset); // add parameter to GUI
     gui.add(audioOutput); // add parameter to GUI
     gui.add(filePlayback); // add parameter to GUI
-
+    
     //load file to player
     player.load("../Resources/HuckFinn.wav");
   }
@@ -301,7 +304,7 @@ public:
     }
 
     // Envelope following
-    state().pointSize = 200 * envFollow.processBuffer(myBuffer, io.framesPerBuffer());
+    state().pointSize = 200 * log(1 + envFollow.processBuffer(myBuffer, io.framesPerBuffer())) + pointSizeOffset;
 
     // RMS calculation + amplitude thresholding
     bufferPower /= io.framesPerBuffer();
