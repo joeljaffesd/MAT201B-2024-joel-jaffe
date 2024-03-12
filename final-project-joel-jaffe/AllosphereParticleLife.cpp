@@ -9,8 +9,7 @@
 
 // TO DO
 // -disable stereo rendering
-// -smooth pointSize with filter
-// -tune logarithmic scaling for pointSize
+// -tune background color for sphere (hide projector borders)
 
 #include "al/app/al_App.hpp"
 #include "al/system/al_Time.hpp"
@@ -219,7 +218,8 @@ public:
     }
     verts.primitive(Mesh::POINTS);
   }
-  //Window().DOUBLE_BUF; // <- disables stereo rendering?
+  //displayMode(Window::DisplayMode::DOUBLE_BUF | Window::DisplayMode::ALPHA_BUF | Window::DisplayMode::DEPTH_BUF);
+  cout << "Display Mode: " << displayMode() << endl;
   }
 
   bool freeze = false; // <- for pausing sim
@@ -345,6 +345,6 @@ int main() {
     app.player.rate(1.0 / alloAudio.channelsOutMax());
     app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
   }
-
+  
   app.start();
 }
