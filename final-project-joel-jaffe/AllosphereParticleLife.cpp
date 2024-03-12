@@ -321,6 +321,7 @@ public:
   }
 
   void onDraw(Graphics &g) { 
+    g.omni(false); // disable omni rendering
     g.clear(0); // black background
     g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
