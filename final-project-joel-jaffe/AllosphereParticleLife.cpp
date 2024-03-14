@@ -173,6 +173,7 @@ public:
   Parameter envAttack{"/envAttack", "", 32.f, 1.f, 50.f}; // 7.2 looks good!, 11.8!
   Parameter envRelease{"/envRelease", "", 399.f, 10.f, 500.f}; // 270 looks good! 399!
   Parameter pointSizeOffset{"/pointSizeOffset", "", 2.f, 0.f, 10.f};
+  Parameter clearValue{"/clearValue", "", 0.f, 0.f, 1.f};
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
   ParameterBool filePlayback{"filePlayback", "", false, 0.f, 1.f};
   gam::SamplePlayer<float, gam::ipl::Linear, gam::phsInc::Loop> player;
@@ -194,6 +195,7 @@ public:
     gui.add(envAttack); // add parameter to GUI
     gui.add(envRelease); // add parameter to GUI
     gui.add(pointSizeOffset); // add parameter to GUI
+    gui.add(clearValue); // add parameter to GUI
     gui.add(audioOutput); // add parameter to GUI
     gui.add(filePlayback); // add parameter to GUI
     
@@ -321,7 +323,7 @@ public:
   }
 
   void onDraw(Graphics &g) { 
-    g.clear(0); // black background
+    g.clear(clearValue); // black background
     g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
     g.draw(verts); // draw verts
