@@ -170,10 +170,10 @@ public:
   Parameter volControl{"volControl", "", 0.f, -96.f, 6.f};
   Parameter rmsMeter{"/rmsMeter", "", -96.f, -96.f, 0.f};
   Parameter dBThresh{"/dBThresh", "", -4.f, -96.f, 0.f}; 
-  Parameter envAttack{"/envAttack", "", 32.f, 1.f, 50.f}; 
-  Parameter envRelease{"/envRelease", "", 399.f, 10.f, 500.f};
-  Parameter pointSizeScale{"/pointSizeScale", "", 200.f, 100.f, 400.f};
-  Parameter pointSizeOffset{"/pointSizeOffset", "", 2.f, 0.f, 10.f};
+  Parameter envAttack{"/envAttack", "", 50.f, 1.f, 50.f}; 
+  Parameter envRelease{"/envRelease", "", 500.f, 10.f, 500.f};
+  Parameter pointSizeScale{"/pointSizeScale", "", 623.f, 100.f, 800.f};
+  Parameter pointSizeOffset{"/pointSizeOffset", "", 4.8f, 0.f, 10.f};
   Parameter clearValue{"/clearValue", "", 0.f, 0.f, 1.f};
   ParameterBool audioOutput{"audioOutput", "", false, 0.f, 1.f};
   ParameterBool filePlayback{"filePlayback", "", false, 0.f, 1.f};
