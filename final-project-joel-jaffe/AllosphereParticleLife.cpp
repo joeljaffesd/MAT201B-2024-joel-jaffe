@@ -343,6 +343,7 @@ int main() {
     alloAudio.print();
     app.player.rate(1.0 / alloAudio.channelsOutMax());
     app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
+    app.lens().eyeSep(0); // <- disable stereo rendering
   } else { // if not... 
     AudioDevice alloAudio = AudioDevice("AlloAudio");
     alloAudio.print();
