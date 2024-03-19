@@ -294,7 +294,7 @@ public:
     float myBuffer [io.framesPerBuffer()]; // initialize myBuffer
     for (int i = 0; i < io.framesPerBuffer(); i++) {
       if (filePlayback) {
-        myBuffer[i] = io.in(0, i) + io.in(1, i); // populate myBuffer with samples
+        myBuffer[i] = io.out(0, i) + io.out(1, i); // populate myBuffer with samples
       } else {
         myBuffer[i] = io.in(0, i); // populate myBuffer with samples
       }
