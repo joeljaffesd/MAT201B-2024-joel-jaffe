@@ -325,6 +325,7 @@ public:
   }
 
   void onDraw(Graphics &g) { 
+    g.lens().eyeSep(0);
     g.clear(clearValue); // black background
     g.pointSize(state().pointSize); // set pointSize
     g.meshColor(); // color vertices based on type
@@ -343,7 +344,7 @@ int main() {
     alloAudio.print();
     app.player.rate(1.0 / alloAudio.channelsOutMax());
     app.configureAudio(alloAudio, 44100, 128, alloAudio.channelsOutMax(), 2);
-    app.lens().eyeSep(0); // <- disable stereo rendering
+    //app.lens().eyeSep(0); // <- disable stereo rendering
   } else { // if not... 
     AudioDevice alloAudio = AudioDevice("AlloAudio");
     alloAudio.print();
